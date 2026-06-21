@@ -17,6 +17,8 @@ dependencies:
   qr_flutter: ^4.1.0
   network_info_plus: ^6.0.0
   google_fonts: ^6.1.0
+  win32: ^5.5.0
+  ffi: ^2.1.0
 
 dev_dependencies:
   flutter_test:
