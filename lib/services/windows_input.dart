@@ -3,7 +3,9 @@ import 'package:win32/win32.dart';
 import 'package:ffi/ffi.dart';
 
 /// Simulates real mouse and keyboard input on Windows using the Win32 API.
-/// This is the native replacement for the old Python `pyautogui` server.
+/// Uses SendInput — the modern, non-deprecated API — instead of the legacy
+/// mouse_event/keybd_event functions, which newer win32 package releases
+/// have removed entirely.
 class WindowsInput {
   static const Map<String, int> _vk = {
     'ctrl': VK_CONTROL, 'control': VK_CONTROL,
@@ -50,6 +52,18 @@ class WindowsInput {
     }
   }
 
+  static void _sendMouse(int flags, [int data = 0]) {
+    final input = calloc<INPUT>();
+    try {
+      input.ref.type = INPUT_MOUSE;
+      input.ref.mi.dwFlags = flags;
+      input.ref.mi.mouseData = data;
+      SendInput(1, input, sizeOf<INPUT>());
+    } finally {
+      calloc.free(input);
+    }
+  }
+
   static void click(String button, int clicks) {
     int down, up;
     switch (button) {
@@ -66,29 +80,41 @@ class WindowsInput {
         up = MOUSEEVENTF_LEFTUP;
     }
     for (var i = 0; i < clicks; i++) {
-      mouse_event(down, 0, 0, 0, 0);
-      mouse_event(up, 0, 0, 0, 0);
+      _sendMouse(down);
+      _sendMouse(up);
     }
   }
 
   static void scroll(int dy) {
-    mouse_event(MOUSEEVENTF_WHEEL, 0, 0, dy * 40, 0);
+    _sendMouse(MOUSEEVENTF_WHEEL, dy * 40);
+  }
+
+  static void _sendKey(int vk, {bool keyUp = false}) {
+    final input = calloc<INPUT>();
+    try {
+      input.ref.type = INPUT_KEYBOARD;
+      input.ref.ki.wVk = vk;
+      input.ref.ki.dwFlags = keyUp ? KEYEVENTF_KEYUP : 0;
+      SendInput(1, input, sizeOf<INPUT>());
+    } finally {
+      calloc.free(input);
+    }
   }
 
   static void keypress(String key) {
     final vk = _resolve(key);
     if (vk == 0) return;
-    keybd_event(vk, 0, 0, 0);
-    keybd_event(vk, 0, KEYEVENTF_KEYUP, 0);
+    _sendKey(vk);
+    _sendKey(vk, keyUp: true);
   }
 
   static void hotkey(List<String> keys) {
     final vks = keys.map(_resolve).where((v) => v != 0).toList();
     for (final vk in vks) {
-      keybd_event(vk, 0, 0, 0);
+      _sendKey(vk);
     }
     for (final vk in vks.reversed) {
-      keybd_event(vk, 0, KEYEVENTF_KEYUP, 0);
+      _sendKey(vk, keyUp: true);
     }
   }
 
