@@ -1,174 +1,201 @@
-import 'dart:ffi';
 import 'dart:io';
 
-// Raw user32.dll bindings — no win32 package needed at all.
-// We define exactly what we need using dart:ffi directly.
-
-// INPUT type constant
-const int _INPUT_MOUSE = 0;
-const int _INPUT_KEYBOARD = 1;
-
-// Mouse event flags
-const int _MOUSEEVENTF_MOVE = 0x0001;
-const int _MOUSEEVENTF_LEFTDOWN = 0x0002;
-const int _MOUSEEVENTF_LEFTUP = 0x0004;
-const int _MOUSEEVENTF_RIGHTDOWN = 0x0008;
-const int _MOUSEEVENTF_RIGHTUP = 0x0010;
-const int _MOUSEEVENTF_WHEEL = 0x0800;
-const int _MOUSEEVENTF_ABSOLUTE = 0x8000;
-
-// Keyboard event flags
-const int _KEYEVENTF_KEYUP = 0x0002;
-
-// Key codes
-const int _VK_CONTROL = 0x11;
-const int _VK_MENU = 0x12; // Alt
-const int _VK_SHIFT = 0x10;
-const int _VK_LWIN = 0x5B;
-const int _VK_RETURN = 0x0D;
-const int _VK_BACK = 0x08;
-const int _VK_TAB = 0x09;
-const int _VK_ESCAPE = 0x1B;
-const int _VK_DELETE = 0x2E;
-const int _VK_UP = 0x26;
-const int _VK_DOWN = 0x28;
-const int _VK_LEFT = 0x25;
-const int _VK_RIGHT = 0x27;
-const int _VK_HOME = 0x24;
-const int _VK_END = 0x23;
-const int _VK_PRIOR = 0x21; // Page Up
-const int _VK_NEXT = 0x22;  // Page Down
-const int _VK_F1 = 0x70;
-
-// Native structs using plain Uint8 arrays — avoids any win32 struct dependency.
-// MOUSEINPUT: dx(4) dy(4) mouseData(4) dwFlags(4) time(4) dwExtraInfo(8) = 28 bytes
-// KEYBDINPUT: wVk(2) wScan(2) dwFlags(4) time(4) dwExtraInfo(8) = 20 bytes
-// INPUT: type(4) + padding(4) + union(28) = 36 bytes on x64
-
-// We'll use mouse_event and keybd_event (simpler, always available in user32)
-// These are the old API but work perfectly fine on all Windows versions.
-
-typedef _MouseEventNative = Void Function(Uint32, Int32, Int32, Int32, IntPtr);
-typedef _MouseEventDart = void Function(int, int, int, int, int);
-
-typedef _KeybdEventNative = Void Function(Uint8, Uint8, Uint32, IntPtr);
-typedef _KeybdEventDart = void Function(int, int, int, int);
-
-typedef _GetCursorPosNative = Int32 Function(Pointer<Int32>);
-typedef _GetCursorPosDart = int Function(Pointer<Int32>);
-
-typedef _SetCursorPosNative = Int32 Function(Int32, Int32);
-typedef _SetCursorPosDart = int Function(int, int);
-
+/// WindowsInput — uses a persistent PowerShell process.
+/// Commands execute instantly with no per-command startup delay.
 class WindowsInput {
-  static _MouseEventDart? _mouseEvent;
-  static _KeybdEventDart? _keybdEvent;
-  static _GetCursorPosDart? _getCursorPos;
-  static _SetCursorPosDart? _setCursorPos;
-  static bool _initialized = false;
+  static Process? _ps;
+  static bool _ready = false;
 
-  static void _init() {
-    if (_initialized || !Platform.isWindows) return;
+  static Future<void> init() async {
+    if (_ready) return;
     try {
-      final user32 = DynamicLibrary.open('user32.dll');
-      _mouseEvent = user32
-          .lookupFunction<_MouseEventNative, _MouseEventDart>('mouse_event');
-      _keybdEvent = user32
-          .lookupFunction<_KeybdEventNative, _KeybdEventDart>('keybd_event');
-      _getCursorPos = user32
-          .lookupFunction<_GetCursorPosNative, _GetCursorPosDart>('GetCursorPos');
-      _setCursorPos = user32
-          .lookupFunction<_SetCursorPosNative, _SetCursorPosDart>('SetCursorPos');
-      _initialized = true;
-    } catch (_) {}
+      _ps = await Process.start('powershell', [
+        '-NoProfile', '-NonInteractive', '-Command', '-'
+      ]);
+      _ready = true;
+      // Drain stdout/stderr so the process doesn't block
+      _ps!.stdout.listen((_) {});
+      _ps!.stderr.listen((_) {});
+    } catch (e) {
+      _ready = false;
+    }
+  }
+
+  static void _run(String script) {
+    if (!_ready || _ps == null) return;
+    try {
+      _ps!.stdin.writeln(script);
+    } catch (_) {
+      _ready = false;
+    }
   }
 
   static void moveRelative(int dx, int dy) {
-    _init();
-    if (!_initialized) return;
-    // Use MOUSEEVENTF_MOVE with relative coords — simplest approach
-    _mouseEvent!(_MOUSEEVENTF_MOVE, dx, dy, 0, 0);
+    _run('''
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class M {
+  [DllImport("user32.dll")] public static extern void mouse_event(int f,int x,int y,int d,int e);
+}
+"@
+[M]::mouse_event(0x0001, $dx, $dy, 0, 0)
+''');
   }
 
   static void click(String button, int clicks) {
-    _init();
-    if (!_initialized) return;
-    final bool right = button == 'right';
+    final down = button == 'right' ? 0x0008 : 0x0002;
+    final up   = button == 'right' ? 0x0010 : 0x0004;
     for (int i = 0; i < clicks; i++) {
-      _mouseEvent!(right ? _MOUSEEVENTF_RIGHTDOWN : _MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-      _mouseEvent!(right ? _MOUSEEVENTF_RIGHTUP : _MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+      _run('''
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class M${DateTime.now().millisecondsSinceEpoch} {
+  [DllImport("user32.dll")] public static extern void mouse_event(int f,int x,int y,int d,int e);
+}
+"@ -ErrorAction SilentlyContinue
+[System.Windows.Forms.SendKeys]::SendWait("")
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.Cursor]::Position = [System.Windows.Forms.Cursor]::Position
+''');
+      _run('''
+Add-Type -AssemblyName System.Windows.Forms
+\$sig = @"
+using System.Runtime.InteropServices;
+public class NM {
+  [DllImport("user32.dll")] public static extern void mouse_event(int f,int x,int y,int d,int e);
+}
+"@
+Add-Type -TypeDefinition \$sig -ErrorAction SilentlyContinue
+[NM]::mouse_event($down, 0, 0, 0, 0)
+Start-Sleep -Milliseconds 50
+[NM]::mouse_event($up, 0, 0, 0, 0)
+''');
     }
   }
 
   static void scroll(int dy) {
-    _init();
-    if (!_initialized) return;
-    _mouseEvent!(_MOUSEEVENTF_WHEEL, 0, 0, dy * 120, 0);
+    final amount = dy * 120;
+    _run('''
+\$sig = @"
+using System.Runtime.InteropServices;
+public class SC { [DllImport("user32.dll")] public static extern void mouse_event(int f,int x,int y,int d,int e); }
+"@
+Add-Type -TypeDefinition \$sig -ErrorAction SilentlyContinue
+[SC]::mouse_event(0x0800, 0, 0, $amount, 0)
+''');
   }
 
   static void hotkey(List<String> keys) {
-    _init();
-    if (!_initialized) return;
-    final vks = keys.map(_keyNameToVk).whereType<int>().toList();
-    for (final vk in vks) {
-      _keybdEvent!(vk, 0, 0, 0);
+    // Build SendKeys string
+    final parts = <String>[];
+    for (final k in keys) {
+      switch (k.toLowerCase()) {
+        case 'ctrl':  parts.add('^'); break;
+        case 'alt':   parts.add('%'); break;
+        case 'shift': parts.add('+'); break;
+        case 'super': case 'win': parts.add('^{ESC}'); break;
+        case 'tab':   parts.add('{TAB}'); break;
+        case 'escape': case 'esc': parts.add('{ESC}'); break;
+        case 'enter': parts.add('{ENTER}'); break;
+        case 'delete': parts.add('{DELETE}'); break;
+        case 'home':  parts.add('{HOME}'); break;
+        case 'end':   parts.add('{END}'); break;
+        case 'pageup': parts.add('{PGUP}'); break;
+        case 'pagedown': parts.add('{PGDN}'); break;
+        case 'left':  parts.add('{LEFT}'); break;
+        case 'right': parts.add('{RIGHT}'); break;
+        case 'up':    parts.add('{UP}'); break;
+        case 'down':  parts.add('{DOWN}'); break;
+        case 'f1': parts.add('{F1}'); break;
+        case 'f2': parts.add('{F2}'); break;
+        case 'f3': parts.add('{F3}'); break;
+        case 'f4': parts.add('{F4}'); break;
+        case 'f5': parts.add('{F5}'); break;
+        case 'f6': parts.add('{F6}'); break;
+        case 'f7': parts.add('{F7}'); break;
+        case 'f8': parts.add('{F8}'); break;
+        case 'f9': parts.add('{F9}'); break;
+        case 'f10': parts.add('{F10}'); break;
+        case 'f11': parts.add('{F11}'); break;
+        case 'f12': parts.add('{F12}'); break;
+        case '=': case 'equal': parts.add('{=}'); break;
+        case '-': case 'minus': parts.add('-'); break;
+        case 'l': parts.add('l'); break;
+        case 'd': parts.add('d'); break;
+        case 's': parts.add('s'); break;
+        case 'c': parts.add('c'); break;
+        case 'v': parts.add('v'); break;
+        case 'z': parts.add('z'); break;
+        case 'y': parts.add('y'); break;
+        case 'a': parts.add('a'); break;
+        case 'f': parts.add('f'); break;
+        case 'p': parts.add('p'); break;
+        case 'n': parts.add('n'); break;
+        case 'w': parts.add('w'); break;
+        case 't': parts.add('t'); break;
+        case 'x': parts.add('x'); break;
+        case 'b': parts.add('b'); break;
+        case 'i': parts.add('i'); break;
+        case 'u': parts.add('u'); break;
+        default: parts.add(k);
+      }
     }
-    for (final vk in vks.reversed) {
-      _keybdEvent!(vk, 0, _KEYEVENTF_KEYUP, 0);
+
+    // Handle Win+key specially
+    if (keys.any((k) => k == 'super' || k == 'win')) {
+      final others = keys.where((k) => k != 'super' && k != 'win').toList();
+      final keyStr = others.isNotEmpty ? others.join('') : '';
+      _run('''
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.SendKeys]::SendWait("^{ESC}")
+Start-Sleep -Milliseconds 200
+if ("$keyStr" -ne "") {
+  [System.Windows.Forms.SendKeys]::SendWait("$keyStr")
+}
+''');
+      return;
     }
+
+    // Wrap non-modifier keys in group
+    final modifiers = parts.where((p) => p == '^' || p == '%' || p == '+').join();
+    final mainKeys = parts.where((p) => p != '^' && p != '%' && p != '+').join();
+    final sendStr = mainKeys.isNotEmpty ? '$modifiers($mainKeys)' : modifiers;
+
+    _run('''
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.SendKeys]::SendWait("$sendStr")
+''');
   }
 
-  static Future<void> typeText(String text) async {
-    _init();
-    if (!_initialized) return;
-    for (final ch in text.split('')) {
-      final vk = ch.toUpperCase().codeUnitAt(0);
-      _keybdEvent!(vk, 0, 0, 0);
-      _keybdEvent!(vk, 0, _KEYEVENTF_KEYUP, 0);
-      await Future.delayed(const Duration(milliseconds: 10));
-    }
+  static void typeText(String text) {
+    // Escape special SendKeys characters
+    final escaped = text
+        .replaceAll('+', '{+}')
+        .replaceAll('^', '{^}')
+        .replaceAll('%', '{%}')
+        .replaceAll('~', '{~}')
+        .replaceAll('(', '{(}')
+        .replaceAll(')', '{)}')
+        .replaceAll('[', '{[}')
+        .replaceAll(']', '{]}')
+        .replaceAll('{', '{{')
+        .replaceAll('}', '}}');
+    _run('''
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.SendKeys]::SendWait("$escaped")
+''');
   }
 
   static void keypress(String key) {
-    _init();
-    if (!_initialized) return;
-    final vk = _keyNameToVk(key);
-    if (vk != null) {
-      _keybdEvent!(vk, 0, 0, 0);
-      _keybdEvent!(vk, 0, _KEYEVENTF_KEYUP, 0);
-    }
+    hotkey([key]);
   }
 
-  static int? _keyNameToVk(String key) {
-    const map = <String, int>{
-      'ctrl': _VK_CONTROL,
-      'alt': _VK_MENU,
-      'shift': _VK_SHIFT,
-      'win': _VK_LWIN,
-      'enter': _VK_RETURN,
-      'backspace': _VK_BACK,
-      'tab': _VK_TAB,
-      'escape': _VK_ESCAPE,
-      'esc': _VK_ESCAPE,
-      'delete': _VK_DELETE,
-      'up': _VK_UP,
-      'down': _VK_DOWN,
-      'left': _VK_LEFT,
-      'right': _VK_RIGHT,
-      'home': _VK_HOME,
-      'end': _VK_END,
-      'pageup': _VK_PRIOR,
-      'pagedown': _VK_NEXT,
-    };
-    final lower = key.toLowerCase();
-    if (map.containsKey(lower)) return map[lower];
-    // F1-F12
-    if (lower.startsWith('f')) {
-      final n = int.tryParse(lower.substring(1));
-      if (n != null && n >= 1 && n <= 12) return _VK_F1 + n - 1;
-    }
-    // Single character
-    if (lower.length == 1) return lower.toUpperCase().codeUnitAt(0);
-    return null;
+  static void dispose() {
+    _ps?.stdin.close();
+    _ps?.kill();
+    _ps = null;
+    _ready = false;
   }
 }
