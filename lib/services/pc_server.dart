@@ -81,7 +81,7 @@ class PcServer {
         case 'keypress':
           if (data['text'] != null) {
             final text = data['text'] as String;
-            await WindowsInput.typeText(text);
+            WindowsInput.typeText(text);
             socket.add(jsonEncode({'type': 'echo', 'status': 'sent', 'text': text}));
             onLog?.call('Typed: $text');
           } else if (data['key'] != null) {
