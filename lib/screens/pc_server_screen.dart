@@ -61,9 +61,14 @@ class _PCServerScreenState extends State<PCServerScreen> {
           child: Column(
             children: [
               Row(children: [
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                SizedBox(
+                  width: 48,
+                  child: Navigator.canPop(context)
+                      ? IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        )
+                      : null,
                 ),
                 Expanded(
                   child: Text('VMouse Server',
