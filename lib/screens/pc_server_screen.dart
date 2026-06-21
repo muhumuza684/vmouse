@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../services/pc_server.dart';
+import '../services/windows_input.dart';
 
 class PCServerScreen extends StatefulWidget {
   const PCServerScreen({super.key});
@@ -47,6 +48,7 @@ class _PCServerScreenState extends State<PCServerScreen>
   }
 
   Future<void> _start() async {
+    await WindowsInput.init();
     final ip = await _server.start();
     if (!mounted) return;
     setState(() {
