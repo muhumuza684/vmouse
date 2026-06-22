@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VMouse">
+<link rel="manifest" href="manifest.json">
+<title>VMouse</title>
+<style>
+:root {
+  --bg:       #000000;
+  --s1:       #0c0c14;
+  --s2:       #141420;
+  --s3:       #1c1c2c;
+  --border:   rgba(255,255,255,0.07);
+  --accent:   #7C73F5;
+  --accent2:  #5a52d5;
+  --text:     #f0f0f8;
+  --muted:    #4a4a6a;
+  --success:  #22c55e;
+  --danger:   #ef4444;
+  --font:     'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --mono:     'SF Mono','Fira Code',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font)}
+
+/* ── CONNECT SCREEN ─────────────────────────────────────────── */
+#connect{
+  position:fixed;inset:0;z-index:100;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:40px 28px;gap:0;
+  background:var(--bg);
+}
+.logo-ring{
+  width:72px;height:72px;border-radius:20px;
+  background:var(--s2);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:28px;
+}
+.logo-ring svg{width:36px;height:36px;fill:var(--accent)}
+.connect-h1{font-size:28px;font-weight:600;letter-spacing:-0.5px;margin-bottom:8px;text-align:center}
+.connect-sub{font-size:14px;color:var(--muted);text-align:center;line-height:1.6;margin-bottom:36px}
+.ip-label{font-size:11px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;align-self:flex-start;width:100%}
+.ip-wrap{width:100%;position:relative;margin-bottom:14px}
+.ip-input{
+  width:100%;padding:16px 20px;
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:14px;color:var(--text);font-size:18px;
+  font-family:var(--mono);text-align:center;outline:none;
+  transition:border-color 0.2s;
+}
+.ip-input:focus{border-color:var(--accent)}
+.connect-btn{
+  width:100%;padding:17px;border-radius:14px;
+  background:var(--accent);border:none;
+  color:#fff;font-size:16px;font-weight:600;
+  letter-spacing:0.02em;cursor:pointer;
+  transition:background 0.15s,transform 0.1s;
+  margin-bottom:12px;
+}
+.connect-btn:active{background:var(--accent2);transform:scale(0.98)}
+.ssl-toggle{display:flex;align-items:center;gap:10px;margin-bottom:24px;cursor:pointer}
+.ssl-check{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--border);background:var(--s2);display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0}
+.ssl-check.on{background:var(--accent);border-color:var(--accent)}
+.ssl-check svg{width:10px;height:10px;fill:#fff;opacity:0;transition:opacity 0.15s}
+.ssl-check.on svg{opacity:1}
+.ssl-label{font-size:13px;color:var(--muted)}
+.err-msg{font-size:13px;color:var(--danger);min-height:20px;text-align:center}
+.connect-tip{font-size:12px;color:var(--muted);text-align:center;line-height:1.7;margin-top:20px}
+.connect-tip strong{color:rgba(255,255,255,0.4)}
+
+/* ── MAIN SCREEN ────────────────────────────────────────────── */
+#main{position:fixed;inset:0;display:none;flex-direction:column;background:var(--bg)}
+
+/* Header */
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px 10px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.hdr-left{display:flex;align-items:center;gap:8px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--danger);transition:background 0.4s}
+.status-dot.on{background:var(--success)}
+.status-info{display:flex;flex-direction:column}
+.status-label{font-size:12px;font-weight:500;color:var(--text)}
+.status-ip{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.hdr-btn{
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:20px;padding:5px 12px;
+  color:var(--muted);font-size:11px;cursor:pointer;
+}
+.hdr-btn:active{background:var(--s3)}
+
+/* Trackpad */
+#trackpad{
+  flex:1;position:relative;overflow:hidden;
+  touch-action:none;
+  background:var(--s1);
+  min-height:0;
+}
+.pad-texture{
+  position:absolute;inset:0;
+  background-image:radial-gradient(circle at 50% 50%, rgba(124,115,245,0.03) 0%, transparent 70%);
+  pointer-events:none;
+}
+.pad-hint{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:10px;
+  pointer-events:none;transition:opacity 0.5s;
+}
+.pad-hint-icon{font-size:32px;opacity:0.08}
+.pad-hint-text{font-size:12px;color:var(--muted);opacity:0.5;text-align:center;line-height:1.8}
+.cursor{
+  position:absolute;width:14px;height:14px;border-radius:50%;
+  background:var(--accent);opacity:0;pointer-events:none;
+  transform:translate(-50%,-50%);
+  box-shadow:0 0 20px rgba(124,115,245,0.4);
+  transition:opacity 0.15s;
+}
+.ripple-el{
+  position:absolute;width:48px;height:48px;border-radius:50%;
+  border:1.5px solid var(--accent);opacity:0;
+  transform:translate(-50%,-50%) scale(0.5);
+  pointer-events:none;transition:none;
+}
+.ripple-el.go{
+  animation:ripple 0.45s ease-out forwards;
+}
+@keyframes ripple{
+  0%{transform:translate(-50%,-50%) scale(0.3);opacity:0.8}
+  100%{transform:translate(-50%,-50%) scale(1.8);opacity:0}
+}
+.log-chip{
+  position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);
+  border:1px solid var(--border);border-radius:20px;
+  padding:5px 14px;font-size:11px;color:var(--muted);
+  font-family:var(--mono);white-space:nowrap;
+  pointer-events:none;transition:opacity 0.3s;
+}
+
+/* Bottom bar — always visible */
+.bottom-bar{
+  background:var(--s1);border-top:1px solid var(--border);
+  flex-shrink:0;
+}
+.click-row{
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  border-bottom:1px solid var(--border);
+}
+.click-btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;padding:13px 8px;
+  background:none;border:none;border-right:1px solid var(--border);
+  color:var(--text);cursor:pointer;transition:background 0.1s;
+}
+.click-btn:last-child{border-right:none}
+.click-btn:active{background:var(--s3)}
+.cb-icon{font-size:18px;color:var(--accent)}
+.cb-label{font-size:10px;color:var(--muted)}
+
+.voice-row{
+  display:flex;align-items:center;gap:14px;
+  padding:10px 20px;
+}
+.mic-btn{
+  width:44px;height:44px;border-radius:50%;
+  background:var(--s2);border:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;transition:all 0.2s;
+}
+.mic-btn svg{width:18px;height:18px;fill:var(--muted);transition:fill 0.2s}
+.mic-btn.active{background:var(--danger);border-color:var(--danger);animation:mic-pulse 1.2s infinite}
+.mic-btn.active svg{fill:#fff}
+@keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.3)}50%{box-shadow:0 0 0 10px rgba(239,68,68,0)}}
+.voice-text{flex:1;font-size:12px;color:var(--muted);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drawer-handle-btn{
+  width:44px;height:44px;border-radius:50%;
+  background:var(--s2);border:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;transition:all 0.2s;
+}
+.drawer-handle-btn svg{width:16px;height:16px;fill:var(--muted);transition:transform 0.3s}
+.drawer-handle-btn.open svg{transform:rotate(180deg)}
+.drawer-handle-btn:active{background:var(--s3)}
+
+/* ── DRAWER ─────────────────────────────────────────────────── */
+#drawer{
+  position:fixed;bottom:0;left:0;right:0;z-index:50;
+  background:var(--s1);border-top:1px solid var(--border);
+  border-radius:20px 20px 0 0;
+  transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  max-height:75vh;overflow-y:auto;
+}
+#drawer.open{transform:translateY(0)}
+.drawer-grip{width:36px;height:4px;border-radius:2px;background:var(--s3);margin:12px auto 16px}
+.drawer-section{padding:0 20px 16px}
+.drawer-section-title{font-size:10px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;font-weight:500}
+.drawer-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+.drawer-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.drw-btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;padding:12px 6px;
+  background:var(--s2);border:1px solid var(--border);border-radius:12px;
+  color:var(--text);cursor:pointer;transition:all 0.1s;
+}
+.drw-btn:active{background:var(--s3);transform:scale(0.96)}
+.drw-icon{font-size:16px}
+.drw-label{font-size:10px;color:var(--muted);text-align:center}
+.drw-divider{height:1px;background:var(--border);margin:4px 0 14px}
+
+/* Scroll controls in drawer */
+.scroll-row{display:flex;align-items:center;justify-content:center;gap:20px;padding:4px 0}
+.scr-btn{
+  width:48px;height:36px;border-radius:10px;
+  background:var(--s2);border:1px solid var(--border);
+  color:var(--text);font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.1s;
+}
+.scr-btn:active{background:var(--accent)}
+.scr-label{font-size:11px;color:var(--muted)}
+
+/* Sensitivity */
+.sens-row{display:flex;align-items:center;gap:12px;padding:6px 0}
+.sens-label{font-size:11px;color:var(--muted);flex-shrink:0}
+.sens-track{flex:1;-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;background:var(--s3);outline:none;accent-color:var(--accent)}
+.sens-val{font-size:12px;color:var(--accent);font-family:var(--mono);min-width:32px;text-align:right}
+
+/* Overlay */
+#overlay{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,0.5);opacity:0;pointer-events:none;transition:opacity 0.35s}
+#overlay.show{opacity:1;pointer-events:all}
+
+/* Install banner */
+#install-banner{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  background:var(--accent);color:#fff;
+  padding:12px 20px;display:none;align-items:center;gap:12px;
+}
+.install-text{flex:1;font-size:13px;font-weight:500}
+.install-btn{background:rgba(255,255,255,0.2);border:none;color:#fff;padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer}
+.install-close{background:none;border:none;color:rgba(255,255,255,0.6);font-size:18px;cursor:pointer;padding:0 4px}
+</style>
+</head>
+<body>
+
+<!-- INSTALL BANNER -->
+<div id="install-banner">
+  <span class="install-text">Add VMouse to your home screen</span>
+  <button class="install-btn" onclick="installPWA()">Install</button>
+  <button class="install-close" onclick="document.getElementById('install-banner').style.display='none'">×</button>
+</div>
+
+<!-- CONNECT SCREEN -->
+<div id="connect">
+  <div class="logo-ring">
+    <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+  </div>
+  <h1 class="connect-h1">VMouse</h1>
+  <p class="connect-sub">Turn your phone into a precision trackpad.<br>No cables. No apps. Just connect.</p>
+
+  <div class="ip-label">PC IP Address</div>
+  <div class="ip-wrap">
+    <input class="ip-input" id="ip" type="text" inputmode="decimal"
+      placeholder="192.168.x.x" autocomplete="off" spellcheck="false">
+  </div>
+
+  <div class="ssl-toggle" onclick="toggleSSL()">
+    <div class="ssl-check" id="sslCheck">
+      <svg viewBox="0 0 10 8"><polyline points="1,4 3.5,6.5 9,1" stroke="#fff" stroke-width="1.5" fill="none"/></svg>
+    </div>
+    <span class="ssl-label">Use HTTPS (wss://) — enables voice commands</span>
+  </div>
+
+  <button class="connect-btn" onclick="connect()">Connect to PC</button>
+  <p class="err-msg" id="err"></p>
+  <p class="connect-tip">Make sure your phone and PC are on the same Wi-Fi.<br>Run <strong>python pc_server.py</strong> on your PC first.<br>For voice: run <strong>python pc_server.py --ssl</strong></p>
+</div>
+
+<!-- MAIN SCREEN -->
+<div id="main">
+  <div class="header">
+    <div class="hdr-left">
+      <div class="status-dot" id="sdot"></div>
+      <div class="status-info">
+        <span class="status-label" id="slabel">Connected</span>
+        <span class="status-ip" id="sip"></span>
+      </div>
+    </div>
+    <span style="font-size:13px;font-weight:600;letter-spacing:0.05em;color:var(--accent)">VMouse</span>
+    <div class="hdr-right">
+      <button class="hdr-btn" onclick="disconnect()">Disconnect</button>
+    </div>
+  </div>
+
+  <div id="trackpad">
+    <div class="pad-texture"></div>
+    <div class="pad-hint" id="hint">
+      <div class="pad-hint-icon">☰</div>
+      <div class="pad-hint-text">Drag to move cursor<br>Tap to left click<br>Two fingers to scroll</div>
+    </div>
+    <div class="cursor" id="cur"></div>
+    <div class="ripple-el" id="rpl"></div>
+    <div class="log-chip" id="logchip">Ready</div>
+  </div>
+
+  <div class="bottom-bar">
+    <div class="click-row">
+      <button class="click-btn" onclick="doClick('left',1)">
+        <span class="cb-icon">◉</span>
+        <span class="cb-label">Left Click</span>
+      </button>
+      <button class="click-btn" onclick="doClick('left',2)">
+        <span class="cb-icon">⊕</span>
+        <span class="cb-label">Double Click</span>
+      </button>
+      <button class="click-btn" onclick="doClick('right',1)">
+        <span class="cb-icon">◎</span>
+        <span class="cb-label">Right Click</span>
+      </button>
+    </div>
+    <div class="voice-row">
+      <button class="mic-btn" id="micbtn" onclick="toggleVoice()">
+        <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 013 3v6a3 3 0 01-6 0V5a3 3 0 013-3zm0 14a7 7 0 007-7h-2a5 5 0 01-10 0H5a7 7 0 007 7zm-1 2h2v3h-2z"/></svg>
+      </button>
+      <span class="voice-text" id="vtxt">Tap mic · say "copy", "scroll down", "open chrome"</span>
+      <button class="drawer-handle-btn" id="drawerBtn" onclick="toggleDrawer()">
+        <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5H7z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY -->
+<div id="overlay" onclick="closeDrawer()"></div>
+
+<!-- DRAWER -->
+<div id="drawer">
+  <div class="drawer-grip"></div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-title">System</div>
+    <div class="drawer-grid">
+      <button class="drw-btn" onclick="hotkey('alt','tab');closeDrawer()">
+        <span class="drw-icon">⇄</span>
+        <span class="drw-label">Alt+Tab</span>
+      </button>
+      <button class="drw-btn" onclick="hotkey('super','d');closeDrawer()">
+        <span class="drw-icon">⊞</span>
+        <span class="drw-label">Desktop</span>
+      </button>
+      <button class="drw-btn" onclick="hotkey('super','l');closeDrawer()">
+        <span class="drw-icon">🔒</span>
+        <span class="drw-label">Lock PC</span>
+      </button>
+      <button class="drw-btn" onclick="hotkey('super','shift','s');closeDrawer()">
+        <span class="drw-icon">📸</span>
+        <span class="drw-label">Screenshot</span>
+      </button>
+      <button class="drw-btn" onclick="hotkey('ctrl','shift','escape');closeDrawer()">
+        <span class="drw-icon">📊</span>
+        <span class="drw-label">Task Mgr</span>
+      </button>
+      <button class="drw-btn" onclick="hotkey('super','i');closeDrawer()">
+        <span class="drw-icon">⚙️</span>
+        <span class="drw-label">Settings</span>
+      </button>
+      <button class="drw-btn" onclick="hotkey('alt','f4');closeDrawer()">
+        <span class="drw-icon">✕</span>
+        <span class="drw-label">Close Win</span>
+      </button>
+      <button class="drw-btn" onclick="send({type:'keypress',key:'escape'});closeDrawer()">
+        <span class="drw-icon">⎋</span>
+        <span class="drw-label">Escape</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-title">Clipboard &amp; Edit</div>
+    <div class="drawer-grid-3">
+      <button class="drw-btn" onclick="hotkey('ctrl','c');closeDrawer()">
+        <span class="drw-icon" style="color:#34d399">⌘C</span>
+        <span class="drw-label">Copy</span>
+      </button>
+      <button class="drw-btn" onclick="hotkey('ctrl','v');closeDrawer()">
+        <span class="drw-icon" style="color:#34d399">⌘V</span>
+        <span class="drw-label">Paste</span>
+      </button>
+      <button class="drw-btn" onclick="hotkey('ctrl','z');closeDrawer()">
+        <span class="drw-icon" style="color:#34d399">⌘Z</span>
+        <span class="drw-label">Undo</span>
+      </button>
+      <button class="drw-btn" onclick="hotkey('ctrl','a');closeDrawer()">
+        <span class="drw-icon" style="color:#34d399">⌘A</span>
+        <span class="drw-label">Select All</span>
+      </button>
+      <button class="drw-btn" onclick="hotkey('ctrl','s');closeDrawer()">
+        <span class="drw-icon" style="color:#34d399">⌘S</span>
+        <span class="drw-label">Save</span>
+      </button>
+      <button class="drw-btn" onclick="hotkey('ctrl','y');closeDrawer()">
+        <span class="drw-icon" style="color:#34d399">⌘Y</span>
+        <span class="drw-label">Redo</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-title">Browser</div>
+    <div class="drawer-grid">
+      <button class="drw-btn" onclick="hotkey('ctrl','t');closeDrawer()">
+        <span class="drw-icon">+</span>
+        <span class="drw-label">New Tab</span>
+      </button>
+      <button class="drw-btn" onclick="hotkey('ctrl','w');closeDrawer()">
+        <span class="drw-icon">✕</span>
+        <span class="drw-label">Close Tab</span>
+      </button>
+      <button class="drw-btn" onclick="hotkey('alt','left');closeDrawer()">
+        <span class="drw-icon">←</span>
+        <span class="drw-label">Back</span>
+      </button>
+      <button class="drw-btn" onclick="send({type:'keypress',key:'f5'});closeDrawer()">
+        <span class="drw-icon">↺</span>
+        <span class="drw-label">Refresh</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-title">Scroll</div>
+    <div class="scroll-row">
+      <button class="scr-btn" onclick="doScroll(5)">▲</button>
+      <span class="scr-label">Scroll</span>
+      <button class="scr-btn" onclick="doScroll(-5)">▼</button>
+    </div>
+  </div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-title">Cursor Speed</div>
+    <div class="sens-row">
+      <span class="sens-label">Slow</span>
+      <input class="sens-track" type="range" min="0.5" max="5" step="0.1" value="1.5" id="sens"
+        oninput="sensitivity=+this.value;document.getElementById('sv').textContent=this.value+'x'">
+      <span class="sens-val" id="sv">1.5x</span>
+      <span class="sens-label">Fast</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+let ws=null, sensitivity=1.5, useSSL=false;
+let lastX=0,lastY=0,dragging=false,t0=0,fingerCount=1;
+let recognition=null,listening=false;
+let deferredPrompt=null;
+let drawerOpen=false;
+let logTimer=null;
+
+// ── PWA install ────────────────────────────────────────────────
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault(); deferredPrompt=e;
+  document.getElementById('install-banner').style.display='flex';
+});
+function installPWA(){
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(()=>{
+    deferredPrompt=null;
+    document.getElementById('install-banner').style.display='none';
+  });
+}
+
+// ── SSL toggle ─────────────────────────────────────────────────
+function toggleSSL(){
+  useSSL=!useSSL;
+  const el=document.getElementById('sslCheck');
+  el.classList.toggle('on',useSSL);
+}
+
+// ── WebSocket ──────────────────────────────────────────────────
+function connect(){
+  const ip=document.getElementById('ip').value.trim();
+  if(!ip){setErr('Enter your PC IP address');return;}
+  const port=useSSL?'8443':'8765';
+  const scheme=useSSL?'wss':'ws';
+  const url=`${scheme}://${ip}:${port}`;
+  setErr('Connecting…');
+  try{ws=new WebSocket(url);}catch(e){setErr('Invalid IP');return;}
+  ws.onopen=()=>{
+    document.getElementById('connect').style.display='none';
+    const m=document.getElementById('main');
+    m.style.display='flex'; m.style.flexDirection='column';
+    document.getElementById('sdot').classList.add('on');
+    document.getElementById('slabel').textContent='Connected';
+    document.getElementById('sip').textContent=url;
+    setupTrackpad();
+    log('Connected');
+    vibrate(50);
+  };
+  ws.onclose=()=>{
+    document.getElementById('sdot').classList.remove('on');
+    document.getElementById('slabel').textContent='Disconnected';
+    log('Disconnected');
+  };
+  ws.onerror=()=>{
+    setErr('Cannot connect — check IP and make sure pc_server.py is running');
+    ws=null;
+  };
+}
+function disconnect(){
+  if(ws)ws.close();
+  document.getElementById('connect').style.display='flex';
+  document.getElementById('main').style.display='none';
+  closeDrawer();
+}
+function send(obj){
+  if(ws&&ws.readyState===1)ws.send(JSON.stringify(obj));
+}
+function setErr(m){document.getElementById('err').textContent=m;}
+
+// ── Trackpad ───────────────────────────────────────────────────
+function setupTrackpad(){
+  const pad=document.getElementById('trackpad');
+  const hint=document.getElementById('hint');
+  const cur=document.getElementById('cur');
+  const rpl=document.getElementById('rpl');
+  let hintGone=false;
+
+  pad.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    fingerCount=e.touches.length;
+    const t=e.touches[0];
+    lastX=t.clientX; lastY=t.clientY;
+    dragging=false; t0=Date.now();
+    if(!hintGone){hint.style.opacity='0';hintGone=true;}
+    cur.style.opacity='1';
+    const r=pad.getBoundingClientRect();
+    cur.style.left=t.clientX+'px';
+    cur.style.top=(t.clientY-r.top)+'px';
+  },{passive:false});
+
+  pad.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    fingerCount=e.touches.length;
+    const t=e.touches[0];
+    const dx=(t.clientX-lastX)*sensitivity;
+    const dy=(t.clientY-lastY)*sensitivity;
+    lastX=t.clientX; lastY=t.clientY;
+
+    if(fingerCount>=2){
+      // two-finger scroll
+      if(Math.abs(dy)>0.5){
+        send({type:'scroll',dy:Math.round(-dy/8)});
+        log('Scroll');
+      }
+      return;
+    }
+
+    if(Math.abs(dx)>0.3||Math.abs(dy)>0.3){
+      dragging=true;
+      send({type:'move',dx:Math.round(dx),dy:Math.round(dy)});
+      const r=pad.getBoundingClientRect();
+      cur.style.left=t.clientX+'px';
+      cur.style.top=(t.clientY-r.top)+'px';
+      log(`Move ${Math.round(dx)}, ${Math.round(dy)}`);
+    }
+  },{passive:false});
+
+  pad.addEventListener('touchend',e=>{
+    e.preventDefault();
+    cur.style.opacity='0';
+    if(!dragging&&(Date.now()-t0)<300&&fingerCount<2){
+      // tap = left click
+      const r=pad.getBoundingClientRect();
+      const t=e.changedTouches[0];
+      rpl.style.left=t.clientX+'px';
+      rpl.style.top=(t.clientY-r.top)+'px';
+      rpl.classList.remove('go');
+      void rpl.offsetWidth;
+      rpl.classList.add('go');
+      send({type:'click',button:'left',clicks:1});
+      log('Left click'); vibrate(30);
+    }
+  },{passive:false});
+}
+
+// ── Actions ────────────────────────────────────────────────────
+function doClick(btn,n){
+  send({type:'click',button:btn,clicks:n});
+  log(`${btn} click`); vibrate(40);
+}
+function doScroll(dy){send({type:'scroll',dy});log('Scroll');}
+function hotkey(...keys){send({type:'hotkey',keys});log('Hotkey: '+keys.join('+'));vibrate(30);}
+function log(msg){
+  const el=document.getElementById('logchip');
+  el.textContent=msg; el.style.opacity='1';
+  clearTimeout(logTimer);
+  logTimer=setTimeout(()=>el.style.opacity='0.3',2000);
+}
+function vibrate(ms){if(navigator.vibrate)navigator.vibrate(ms);}
+
+// ── Drawer ─────────────────────────────────────────────────────
+function toggleDrawer(){drawerOpen?closeDrawer():openDrawer();}
+function openDrawer(){
+  drawerOpen=true;
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('drawerBtn').classList.add('open');
+}
+function closeDrawer(){
+  drawerOpen=false;
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('drawerBtn').classList.remove('open');
+}
+
+// ── Voice ──────────────────────────────────────────────────────
+function toggleVoice(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){
+    document.getElementById('vtxt').textContent='Voice needs Chrome on HTTPS — tap SSL toggle on connect screen';
+    return;
+  }
+  if(listening){recognition.stop();return;}
+
+  recognition=new SR();
+  recognition.continuous=true;
+  recognition.interimResults=false;
+  recognition.lang='en-US';
+
+  recognition.onstart=()=>{
+    listening=true;
+    document.getElementById('micbtn').classList.add('active');
+    document.getElementById('vtxt').textContent='Listening…';
+    vibrate(30);
+  };
+  recognition.onend=()=>{
+    listening=false;
+    document.getElementById('micbtn').classList.remove('active');
+    document.getElementById('vtxt').textContent='Tap mic · say "copy", "scroll down", "open chrome"';
+  };
+  recognition.onerror=e=>{
+    listening=false;
+    document.getElementById('micbtn').classList.remove('active');
+    if(e.error==='not-allowed')
+      document.getElementById('vtxt').textContent='Mic blocked — needs HTTPS. Enable SSL toggle.';
+    else
+      document.getElementById('vtxt').textContent='Voice error: '+e.error;
+  };
+  recognition.onresult=e=>{
+    const t=e.results[e.results.length-1][0].transcript.toLowerCase().trim();
+    document.getElementById('vtxt').textContent='"'+t+'"';
+    processVoice(t); vibrate(20);
+  };
+  recognition.start();
+}
+
+function processVoice(t){
+  const h=(...k)=>send({type:'hotkey',keys:k});
+  if(t.includes('copy'))             {h('ctrl','c');log('Voice: copy');}
+  else if(t.includes('paste'))       {h('ctrl','v');log('Voice: paste');}
+  else if(t.includes('undo'))        {h('ctrl','z');log('Voice: undo');}
+  else if(t.includes('redo'))        {h('ctrl','y');log('Voice: redo');}
+  else if(t.includes('select all'))  {h('ctrl','a');log('Voice: select all');}
+  else if(t.includes('save'))        {h('ctrl','s');log('Voice: save');}
+  else if(t.includes('close window')){h('alt','f4');log('Voice: close window');}
+  else if(t.includes('switch')||t.includes('alt tab')){h('alt','tab');log('Voice: alt+tab');}
+  else if(t.includes('lock'))        {h('super','l');log('Voice: lock');}
+  else if(t.includes('desktop'))     {h('super','d');log('Voice: desktop');}
+  else if(t.includes('screenshot'))  {h('super','shift','s');log('Voice: screenshot');}
+  else if(t.includes('task manager')){h('ctrl','shift','escape');log('Voice: task manager');}
+  else if(t.includes('scroll down')) {doScroll(-5);}
+  else if(t.includes('scroll up'))   {doScroll(5);}
+  else if(t.includes('page down'))   {send({type:'keypress',key:'pagedown'});}
+  else if(t.includes('page up'))     {send({type:'keypress',key:'pageup'});}
+  else if(t.includes('right click')) {doClick('right',1);}
+  else if(t.includes('double click')){doClick('left',2);}
+  else if(t.includes('click'))       {doClick('left',1);}
+  else if(t.includes('volume up'))   {send({type:'keypress',key:'volumeup'});}
+  else if(t.includes('volume down')) {send({type:'keypress',key:'volumedown'});}
+  else if(t.includes('mute'))        {send({type:'keypress',key:'volumemute'});}
+  else if(t.includes('refresh'))     {send({type:'keypress',key:'f5'});}
+  else if(t.includes('escape'))      {send({type:'keypress',key:'escape'});}
+  else{
+    const m1=t.match(/(?:type|write|enter)\s+(.+)/);
+    if(m1){send({type:'keypress',text:m1[1]});log('Voice: type "'+m1[1]+'"');return;}
+    const m2=t.match(/open\s+(.+)/);
+    if(m2){send({type:'open_app',app:m2[1]});log('Voice: open '+m2[1]);return;}
+    log('Voice: "'+t+'" — not recognised');
+  }
+}
+
+// ── Service Worker ─────────────────────────────────────────────
+if('serviceWorker' in navigator){
+  const sw=`
+const V='vm-v2';
+const FILES=['/index.html','/manifest.json'];
+self.addEventListener('install',e=>e.waitUntil(
+  caches.open(V).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())
+));
+self.addEventListener('activate',e=>e.waitUntil(
+  caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k))))
+));
+self.addEventListener('fetch',e=>e.respondWith(
+  caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{
+    if(res.ok){const c=res.clone();caches.open(V).then(ca=>ca.put(e.request,c));}
+    return res;
+  }).catch(()=>caches.match('/index.html')))
+));
+`;
+  const blob=new Blob([sw],{type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+</script>
+</body>
+</html>
