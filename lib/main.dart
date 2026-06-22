@@ -2,7 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/qr_scan_screen.dart';
-import 'screens/pc_server_screen.dart';
+// PCServerScreen only exists on Windows — import conditionally
+import 'screens/pc_server_screen.dart'
+    if (dart.library.html) 'screens/qr_scan_screen.dart';
 
 void main() {
   runApp(const VMouseApp());
@@ -13,9 +15,7 @@ class VMouseApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Platform decides the role — no menu, no asking.
-    // Windows build = the PC being controlled, opens straight to the QR/server screen.
-    // Android (and anything else) build = the remote, opens straight to the scanner.
+    // Windows = PC server mode. Everything else = phone remote mode.
     final Widget startScreen =
         Platform.isWindows ? const PCServerScreen() : const QRScanScreen();
 
@@ -32,9 +32,7 @@ class VMouseApp extends StatelessWidget {
           onSurface: const Color(0xFFF0F0F8),
         ),
         scaffoldBackgroundColor: const Color(0xFF000000),
-        textTheme: GoogleFonts.dmSansTextTheme(
-          ThemeData.dark().textTheme,
-        ),
+        textTheme: GoogleFonts.dmSansTextTheme(ThemeData.dark().textTheme),
         cardTheme: CardTheme(
           color: const Color(0xFF111120),
           elevation: 0,

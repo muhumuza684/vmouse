@@ -1,12 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-import 'windows_input.dart';
 
-/// A WebSocket server that listens for commands from the VMouse phone app
-/// and executes them as real mouse/keyboard input on this PC.
-///
-/// This runs entirely inside the Flutter app — no separate Python process
-/// is needed.
+// Conditional import: on Windows load real input; everywhere else load the stub.
+// This is the key fix — the APK build on Linux never compiles windows_input.dart.
+import 'windows_input_stub.dart'
+    if (dart.library.io) 'windows_input_io.dart';
+
 class PcServer {
   HttpServer? _server;
   final List<WebSocket> _clients = [];
@@ -15,8 +14,6 @@ class PcServer {
 
   PcServer({this.onLog, this.onClientCountChanged});
 
-  /// Starts the server and returns this PC's local IP address,
-  /// or null if the server failed to start.
   Future<String?> start({int port = 8765}) async {
     try {
       _server = await HttpServer.bind(InternetAddress.anyIPv4, port);
@@ -49,7 +46,21 @@ class PcServer {
       }
     });
 
+    _startHeartbeat();
     return _localIp();
+  }
+
+  void _startHeartbeat() {
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(seconds: 10));
+      if (_server == null) return false;
+      for (final c in List<WebSocket>.from(_clients)) {
+        try {
+          c.add(jsonEncode({'type': 'ping'}));
+        } catch (_) {}
+      }
+      return true;
+    });
   }
 
   Future<void> _handleMessage(WebSocket socket, dynamic raw) async {
@@ -74,7 +85,8 @@ class PcServer {
           WindowsInput.scroll((data['dy'] ?? 0) as int);
           break;
         case 'hotkey':
-          final keys = (data['keys'] as List).map((e) => e.toString()).toList();
+          final keys =
+              (data['keys'] as List).map((e) => e.toString()).toList();
           WindowsInput.hotkey(keys);
           onLog?.call('Hotkey: ${keys.join('+')}');
           break;

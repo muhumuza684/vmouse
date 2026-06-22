@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,6 +24,8 @@ class _TrackpadScreenState extends State<TrackpadScreen> {
   double _sensitivity = 1.5;
   bool _drawerOpen = false;
   String _activeTab = 'type';
+  Timer? _pingTimer;
+  DateTime _lastPing = DateTime.now();
 
   double _lastX = 0, _lastY = 0;
   bool _dragging = false;
@@ -48,19 +51,37 @@ class _TrackpadScreenState extends State<TrackpadScreen> {
       _channel!.stream.listen(
         (msg) {
           final data = jsonDecode(msg);
-          if (data['type'] == 'echo') {
-            setState(() => _echo = '${data['status']}: "${data['text']}"');
+          if (data['type'] == 'ping') {
+            // PC is alive
+            _lastPing = DateTime.now();
+            if (!_connected && mounted) setState(() { _connected = true; _log = 'Connected'; });
+          } else if (data['type'] == 'echo') {
+            setState(() => _echo = '"${data['text']}" sent');
             Future.delayed(const Duration(seconds: 3), () {
               if (mounted) setState(() => _echo = '');
             });
           }
         },
-        onDone: () => setState(() { _connected = false; _log = 'Disconnected'; }),
-        onError: (_) => setState(() { _connected = false; _log = 'Connection failed'; }),
+        onDone: () {
+          _pingTimer?.cancel();
+          if (mounted) setState(() { _connected = false; _log = 'Disconnected'; });
+        },
+        onError: (_) {
+          _pingTimer?.cancel();
+          if (mounted) setState(() { _connected = false; _log = 'Connection failed'; });
+        },
       );
-      setState(() { _connected = true; _log = 'Connected ✓'; });
+      setState(() { _connected = true; _log = 'Connected'; });
+      // Check if PC goes silent — if no ping for 15s, mark disconnected
+      _pingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+        if (DateTime.now().difference(_lastPing).inSeconds > 15) {
+          if (_connected && mounted) setState(() { _connected = false; _log = 'PC offline'; });
+        } else {
+          if (!_connected && mounted) setState(() { _connected = true; _log = 'Connected'; });
+        }
+      });
     } catch (e) {
-      setState(() { _connected = false; _log = 'Cannot connect: $e'; });
+      setState(() { _connected = false; _log = 'Cannot connect'; });
     }
   }
 
@@ -72,10 +93,13 @@ class _TrackpadScreenState extends State<TrackpadScreen> {
     if (await Vibration.hasVibrator() ?? false) Vibration.vibrate(duration: ms);
   }
 
-  void _setLog(String msg) => setState(() => _log = msg);
+  void _setLog(String msg) {
+    if (mounted) setState(() => _log = msg);
+  }
 
   @override
   void dispose() {
+    _pingTimer?.cancel();
     _channel?.sink.close();
     super.dispose();
   }
@@ -93,13 +117,12 @@ class _TrackpadScreenState extends State<TrackpadScreen> {
               onLeftClick: () { _send({'type':'click','button':'left','clicks':1}); _setLog('Left click'); _vibrate(30); },
               onDoubleClick: () { _send({'type':'click','button':'left','clicks':2}); _setLog('Double click'); _vibrate(40); },
               onRightClick: () { _send({'type':'click','button':'right','clicks':1}); _setLog('Right click'); _vibrate(30); },
-              onVoice: () => _setLog('Voice — use HTTPS for mic'),
+              onVoice: () => _setLog('Voice — needs HTTPS'),
               onDrawer: () => setState(() => _drawerOpen = true),
               logText: _log,
             ),
           ]),
 
-          // Drawer overlay
           if (_drawerOpen) ...[
             GestureDetector(
               onTap: () => setState(() => _drawerOpen = false),
@@ -150,22 +173,24 @@ class _TrackpadScreenState extends State<TrackpadScreen> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: _connected ? const Color(0xFF00D68F) : const Color(0xFFFF5C6A),
-            boxShadow: _connected ? [BoxShadow(color: const Color(0xFF00D68F).withOpacity(0.5), blurRadius: 6)] : [],
+            boxShadow: _connected
+                ? [BoxShadow(color: const Color(0xFF00D68F).withOpacity(0.5), blurRadius: 6)]
+                : [],
           ),
         ),
         const SizedBox(width: 8),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(_connected ? 'Connected' : 'Disconnected',
+          Text(_connected ? 'Connected' : _log,
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white)),
-          Text('ws://${widget.ip}:8765',
+          Text('${widget.ip}:8765',
             style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.4), fontFamily: 'monospace')),
         ]),
         const Spacer(),
         ShaderMask(
           shaderCallback: (b) => const LinearGradient(
             colors: [Color(0xFF6C5CE7), Color(0xFF9B59B6)]).createShader(b),
-          child: const Text('VMouse', style: TextStyle(
-            fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: 1)),
+          child: const Text('VMouse',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: 1)),
         ),
         const SizedBox(width: 12),
         TextButton(
@@ -199,9 +224,7 @@ class _TrackpadScreenState extends State<TrackpadScreen> {
         _lastY = d.localFocalPoint.dy;
 
         if (_fingerCount >= 2) {
-          if (dy.abs() > 1) {
-            _send({'type': 'scroll', 'dy': (-dy / 6).round()});
-          }
+          if (dy.abs() > 1) _send({'type': 'scroll', 'dy': (-dy / 6).round()});
           return;
         }
         if (dx.abs() > 0.3 || dy.abs() > 0.3) {
@@ -221,7 +244,6 @@ class _TrackpadScreenState extends State<TrackpadScreen> {
       child: Container(
         color: const Color(0xFF0A0A12),
         child: Stack(children: [
-          // Background glow
           Positioned.fill(child: Container(
             decoration: const BoxDecoration(
               gradient: RadialGradient(
@@ -231,7 +253,6 @@ class _TrackpadScreenState extends State<TrackpadScreen> {
               ),
             ),
           )),
-          // Hint
           if (!_hintGone) Center(child: Column(
             mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.mouse, size: 48, color: Colors.white.withOpacity(0.05)),
@@ -243,24 +264,36 @@ class _TrackpadScreenState extends State<TrackpadScreen> {
                 style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.2))),
             ],
           )),
-          // Log chip
-          Positioned(bottom: 12, left: 0, right: 0,
-            child: Center(child: AnimatedOpacity(
-              opacity: _log.isNotEmpty ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 400),
+          // Echo feedback
+          if (_echo.isNotEmpty)
+            Positioned(top: 12, left: 20, right: 20,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.75),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.07)),
+                  color: const Color(0xFF111120),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF6C5CE7).withOpacity(0.4)),
                 ),
-                child: Text(_log, style: TextStyle(
-                  fontSize: 11, color: Colors.white.withOpacity(0.6),
-                  fontFamily: 'monospace',
-                )),
+                child: Text(_echo,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12, fontFamily: 'monospace')),
+              )),
+          // Log chip at bottom
+          Positioned(bottom: 12, left: 0, right: 0,
+            child: Center(child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.75),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withOpacity(0.07)),
               ),
+              child: Text(_log,
+                style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.6), fontFamily: 'monospace')),
             ))),
+          // Branding footer
+          Positioned(bottom: 0, right: 12,
+            child: Text('Powered by Brytma Tech Uganda',
+              style: TextStyle(fontSize: 9, color: Colors.white.withOpacity(0.12), letterSpacing: 0.3))),
         ]),
       ),
     );
