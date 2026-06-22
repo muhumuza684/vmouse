@@ -10,236 +10,204 @@ class QRScanScreen extends StatefulWidget {
 }
 
 class _QRScanScreenState extends State<QRScanScreen> {
-  final MobileScannerController _controller = MobileScannerController();
-  final TextEditingController _ipController = TextEditingController();
+  MobileScannerController? _controller;
   bool _scanned = false;
-  String _error = '';
+  bool _torchOn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = MobileScannerController(
+      detectionSpeed: DetectionSpeed.noDuplicates,
+    );
+  }
 
   @override
   void dispose() {
-    _controller.dispose();
-    _ipController.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
-  void _onQRDetected(BarcodeCapture capture) {
+  void _onDetect(BarcodeCapture capture) {
     if (_scanned) return;
     final barcode = capture.barcodes.firstOrNull;
-    if (barcode?.rawValue == null) return;
-    final value = barcode!.rawValue!;
-    // Extract IP from ws://IP:PORT
-    final match = RegExp(r'ws[s]?://([^:]+)').firstMatch(value);
-    final ip = match?.group(1) ?? value;
+    if (barcode == null) return;
+    final raw = barcode.rawValue ?? '';
+    // Expect ws://192.168.x.x:8765
+    if (!raw.startsWith('ws://') && !raw.startsWith('wss://')) return;
+
     setState(() => _scanned = true);
-    _controller.stop();
-    _connectToPC(ip);
-  }
+    _controller?.stop();
 
-  void _connectManual() {
-    final ip = _ipController.text.trim();
-    if (ip.isEmpty) {
-      setState(() => _error = 'Enter PC IP address');
-      return;
-    }
-    _connectToPC(ip);
-  }
-
-  Future<void> _connectToPC(String ip) async {
-    await Navigator.push(context,
-      MaterialPageRoute(builder: (_) => TrackpadScreen(ip: ip)));
-    // We're back from the trackpad (user hit Disconnect or back) — reset and resume scanning.
-    if (!mounted) return;
-    setState(() => _scanned = false);
-    _controller.start();
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => TrackpadScreen(wsUrl: raw),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(children: [
-        // Camera
-        MobileScanner(controller: _controller, onDetect: _onQRDetected),
-
-        // Dark overlay with frame cutout
-        ColorFiltered(
-          colorFilter: const ColorFilter.mode(Colors.transparent, BlendMode.dstOut),
-          child: Container(
-            color: Colors.black.withOpacity(0.65),
-            child: Center(
-              child: Container(
-                width: 260, height: 260,
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: Colors.black),
-              ),
-            ),
-          ),
-        ),
-        Container(color: Colors.black.withOpacity(0.65)),
-        Center(
-          child: Container(
-            width: 260, height: 260,
-            decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFF6C5CE7), width: 2),
-              borderRadius: BorderRadius.circular(16),
-              color: Colors.transparent,
-            ),
-            child: Stack(children: [
-              // Scan line animation
-              _ScanLine(),
-              // Corners
-              ...[Alignment.topLeft, Alignment.topRight, Alignment.bottomLeft, Alignment.bottomRight]
-                .map((a) => Align(alignment: a, child: _Corner(alignment: a))),
-            ]),
-          ),
-        ),
-
-        // Back button (only shown if there's actually somewhere to go back to)
-        if (Navigator.canPop(context))
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                style: IconButton.styleFrom(backgroundColor: Colors.black54),
-              ),
-            ),
-          ),
-
-        // Title
-        const SafeArea(
-          child: Padding(
-            padding: EdgeInsets.only(top: 60),
-            child: Center(child: Text('Scan QR Code',
-              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600))),
-          ),
-        ),
-
-        // Hint + manual input at bottom
-        Align(alignment: Alignment.bottomCenter,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text('Point camera at the QR on your PC screen',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13)),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: Icon(Icons.mouse, color: Color(0xFF6C5CE7), size: 28),
                   ),
-                  child: Column(children: [
-                    TextField(
-                      controller: _ipController,
-                      style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 16),
-                      textAlign: TextAlign.center,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'Or type PC IP: 192.168.x.x',
-                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'VMouse',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18,
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: Color(0xFF6C5CE7)),
-                        ),
-                        filled: true, fillColor: Colors.white.withOpacity(0.05),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _connectManual,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF6C5CE7),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      Text(
+                        'by Bryt Ma Tech',
+                        style: TextStyle(
+                          color: const Color(0xFF6C5CE7),
+                          fontSize: 10,
+                          letterSpacing: 0.5,
                         ),
-                        child: const Text('Connect →', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                       ),
-                    ),
-                    if (_error.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(_error, style: const TextStyle(color: Color(0xFFFF5C6A), fontSize: 12)),
                     ],
-                  ]),
-                ),
-              ]),
+                  ),
+                ],
+              ),
             ),
-          ),
+
+            // Instructions
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Connect to PC',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Run VMouse.exe on your PC then scan the QR code shown on screen.',
+                    style: TextStyle(color: const Color(0xFF888899), fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Scanner box
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Stack(
+                    children: [
+                      MobileScanner(
+                        controller: _controller!,
+                        onDetect: _onDetect,
+                      ),
+                      // Corner overlay
+                      CustomPaint(
+                        size: Size.infinite,
+                        painter: _ScannerOverlayPainter(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Torch toggle
+            GestureDetector(
+              onTap: () {
+                setState(() => _torchOn = !_torchOn);
+                _controller?.toggleTorch();
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111120),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: const Color(0xFF1E1E32)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _torchOn ? Icons.flashlight_off : Icons.flashlight_on,
+                      color: _torchOn ? const Color(0xFF6C5CE7) : Colors.white54,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _torchOn ? 'Torch On' : 'Torch Off',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 32),
+          ],
         ),
-      ]),
+      ),
     );
   }
 }
 
-class _ScanLine extends StatefulWidget {
-  @override
-  State<_ScanLine> createState() => _ScanLineState();
-}
-class _ScanLineState extends State<_ScanLine> with SingleTickerProviderStateMixin {
-  late AnimationController _ac;
-  late Animation<double> _anim;
-  @override
-  void initState() {
-    super.initState();
-    _ac = AnimationController(duration: const Duration(seconds: 2), vsync: this)..repeat(reverse: true);
-    _anim = Tween(begin: 0.05, end: 0.92).animate(CurvedAnimation(parent: _ac, curve: Curves.easeInOut));
-  }
-  @override
-  void dispose() { _ac.dispose(); super.dispose(); }
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(animation: _anim, builder: (_, __) => Positioned(
-      top: 260 * _anim.value, left: 8, right: 8,
-      child: Container(height: 2,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Colors.transparent, Color(0xFF6C5CE7), Colors.transparent]),
-          borderRadius: BorderRadius.circular(1),
-        )),
-    ));
-  }
-}
-
-class _Corner extends StatelessWidget {
-  final Alignment alignment;
-  const _Corner({required this.alignment});
-  @override
-  Widget build(BuildContext context) {
-    final isLeft = alignment == Alignment.topLeft || alignment == Alignment.bottomLeft;
-    final isTop = alignment == Alignment.topLeft || alignment == Alignment.topRight;
-    return Padding(
-      padding: const EdgeInsets.all(0),
-      child: Align(alignment: alignment,
-        child: SizedBox(width: 24, height: 24,
-          child: CustomPaint(painter: _CornerPainter(isLeft: isLeft, isTop: isTop)))),
-    );
-  }
-}
-class _CornerPainter extends CustomPainter {
-  final bool isLeft, isTop;
-  _CornerPainter({required this.isLeft, required this.isTop});
+class _ScannerOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFF6C5CE7)..strokeWidth = 3..style = PaintingStyle.stroke;
-    final path = Path();
-    if (isLeft && isTop) { path.moveTo(0, size.height); path.lineTo(0, 0); path.lineTo(size.width, 0); }
-    else if (!isLeft && isTop) { path.moveTo(0, 0); path.lineTo(size.width, 0); path.lineTo(size.width, size.height); }
-    else if (isLeft && !isTop) { path.moveTo(0, 0); path.lineTo(0, size.height); path.lineTo(size.width, size.height); }
-    else { path.moveTo(0, size.height); path.lineTo(size.width, size.height); path.lineTo(size.width, 0); }
-    canvas.drawPath(path, paint);
+    final paint = Paint()
+      ..color = const Color(0xFF6C5CE7)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+
+    const len = 30.0;
+    const r = 12.0;
+    final l = size.width * 0.1;
+    final t = size.height * 0.15;
+    final ri = size.width * 0.9;
+    final bo = size.height * 0.85;
+
+    // Top-left
+    canvas.drawLine(Offset(l + r, t), Offset(l + r + len, t), paint);
+    canvas.drawLine(Offset(l, t + r), Offset(l, t + r + len), paint);
+    // Top-right
+    canvas.drawLine(Offset(ri - r, t), Offset(ri - r - len, t), paint);
+    canvas.drawLine(Offset(ri, t + r), Offset(ri, t + r + len), paint);
+    // Bottom-left
+    canvas.drawLine(Offset(l + r, bo), Offset(l + r + len, bo), paint);
+    canvas.drawLine(Offset(l, bo - r), Offset(l, bo - r - len), paint);
+    // Bottom-right
+    canvas.drawLine(Offset(ri - r, bo), Offset(ri - r - len, bo), paint);
+    canvas.drawLine(Offset(ri, bo - r), Offset(ri, bo - r - len), paint);
   }
+
   @override
   bool shouldRepaint(_) => false;
 }

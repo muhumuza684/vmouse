@@ -9,15 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  web_socket_channel: ^2.4.0
-  mobile_scanner: ^5.0.0
-  permission_handler: ^11.0.0
-  vibration: ^2.0.0
-  shared_preferences: ^2.2.0
-  qr_flutter: ^4.1.0
-  network_info_plus: ^6.0.0
   google_fonts: ^6.1.0
- 
+  mobile_scanner: ^5.1.0
+  web_socket_channel: ^3.0.0
+  vibration: ^1.8.4
 
 dev_dependencies:
   flutter_test:
