@@ -1,0 +1,23 @@
+name: vmouse
+description: VMouse - Control your PC from your phone
+publish_to: 'none'
+version: 1.0.0+1
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+dependencies:
+  shared_preferences: ^2.5.3
+  flutter:
+    sdk: flutter
+  google_fonts: ^6.1.0
+  mobile_scanner: ^5.1.0
+  web_socket_channel: ^3.0.0
+  vibration: ^1.8.4
+  battery_plus: ^7.1.1
+  device_info_plus: ^9.0.0
+  percent_indicator: ^4.2.5
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+flutter:
+  uses-material-design: true

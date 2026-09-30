@@ -1,0 +1,61 @@
+name: Build VMouse
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.4'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VMouse-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  build-windows:
+    name: Build Windows exe (PC server)
+    runs-on: windows-2022
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build VMouse.exe with PyInstaller
+        run: pyinstaller --noconfirm --onefile --windowed --name VMouse --icon assets/vmouse.ico --add-data "assets;assets" --hidden-import tkinter --hidden-import PIL --hidden-import PIL.Image --hidden-import PIL.ImageTk --hidden-import qrcode --hidden-import qrcode.image.pil --hidden-import websockets --hidden-import OpenSSL vmouse_server.py
+
+      - name: Zip Windows build
+        run: Compress-Archive -Path dist/VMouse.exe -DestinationPath VMouse-windows.zip
+
+      - name: Upload exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: VMouse-windows
+          path: VMouse-windows.zip
