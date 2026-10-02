@@ -35,14 +35,14 @@ class _QRScanScreenState extends State<QRScanScreen> {
     if (barcode == null) return;
     final raw = barcode.rawValue ?? '';
     // Expect ws://192.168.x.x:8765
-    if (!raw.startsWith('ws://') && !raw.startsWith('wss://')) return;
+    if (!raw.startsWith('ws://') && !raw.startsWith('wss://') && !raw.startsWith('http://')) return;
 
     setState(() => _scanned = true);
     _controller?.stop();
 
     // One connection for the whole app session — every screen from here
     // on reuses this instead of opening its own.
-    ConnectionService().connect(raw);
+    ConnectionService().connectFromQr(raw);
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(

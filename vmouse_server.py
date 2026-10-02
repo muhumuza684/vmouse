@@ -61,7 +61,17 @@ VMOUSE_DATA_DIR = Path(
 VMOUSE_CERT_PATH = VMOUSE_DATA_DIR / "cert.pem"
 VMOUSE_KEY_PATH  = VMOUSE_DATA_DIR / "key.pem"
 
-STATUS_PORT  = 8764  # localhost-only JSON status feed for the Electron desktop app
+import contextlib
+import functools
+import pairing
+import web_static
+
+WS_PLAIN_PORT = pairing.WS_PLAIN_PORT
+HTTP_PORT = pairing.HTTP_PORT
+PAIRING_STORE = pairing.PairingStore(VMOUSE_DATA_DIR)
+PAIRING_GUARD = pairing.PairingGuard(PAIRING_STORE)
+LOOP = None  # the asyncio loop, set in main()
+STATUS_PORT = 8764  # localhost-only JSON status feed for the Electron desktop app
 SENSITIVITY  = 1.5
 SCROLL_SPEED = 3
 
@@ -93,11 +103,7 @@ HEAVY_COMMAND_TYPES = {"system_power", "system_command", "get_health"}
 # ── Network ───────────────────────────────────────────────────────────────────
 
 def local_ip():
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80)); ip = s.getsockname()[0]; s.close(); return ip
-    except:
-        return "127.0.0.1"
+    return pairing.pick_lan_ip()
 
 
 # ── SSL cert ──────────────────────────────────────────────────────────────────
@@ -174,30 +180,33 @@ def gen_cert_if_needed():
 
 
 
-def start_web_server(directory):
-    has_ssl = gen_cert_if_needed()
-    os.chdir(directory)
-    handler = http.server.SimpleHTTPRequestHandler
-    handler.log_message = lambda *a: None
-
-    if has_ssl:
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ctx.load_cert_chain(str(VMOUSE_CERT_PATH), str(VMOUSE_KEY_PATH))
-        class SSLServer(socketserver.TCPServer):
-            def get_request(self):
-                conn, addr = self.socket.accept()
-                return ctx.wrap_socket(conn, server_side=True), addr
+def pwa_directory():
+    """Folder with the iPhone web app. Only this folder is ever served."""
+    path = Path(vmouse_resource("pwa"))
+    if not path.exists():
         try:
-            with SSLServer(("", WEB_PORT), handler) as httpd:
-                log.info(f"HTTPS web server on port {WEB_PORT}")
-                httpd.serve_forever()
-            return
-        except Exception as e:
-            log.warning(f"HTTPS failed ({e}), falling back to HTTP:8080")
+            path.mkdir(parents=True, exist_ok=True)
+            (path / "index.html").write_text(
+                "<!doctype html><title>VMouse</title><p>The VMouse web app is not installed on this PC yet.</p>",
+                encoding="utf-8")
+        except Exception:
+            pass
+    return path
 
-    with socketserver.TCPServer(("", 8080), handler) as httpd:
-        log.info("HTTP web server on port 8080")
-        httpd.serve_forever()
+
+def start_web_server(directory=None):
+    folder = pwa_directory()
+    try:
+        web_static.serve_http(folder, HTTP_PORT)
+        log.info(f"Web app on http://0.0.0.0:{HTTP_PORT}")
+    except Exception as e:
+        log.warning(f"Web app (http) could not start: {e}")
+    if gen_cert_if_needed():
+        try:
+            web_static.serve_https(folder, WEB_PORT, VMOUSE_CERT_PATH, VMOUSE_KEY_PATH)
+            log.info(f"Web app on https://0.0.0.0:{WEB_PORT}")
+        except Exception as e:
+            log.warning(f"Web app (https) could not start: {e}")
 
 
 # ── QR popup window ───────────────────────────────────────────────────────────
@@ -215,30 +224,36 @@ def show_qr_popup(ip, has_ssl):
         scheme = "https" if has_ssl else "http"
         port = WEB_PORT if has_ssl else 8080
 
-        web_url = f"{scheme}://{ip}:{port}"
-        ws_url = f"ws://{ip}:{WS_PORT}"
+        web_url = f"http://{ip}:{HTTP_PORT}"
+        ws_url = f"{'wss' if has_ssl else 'ws'}://{ip}:{WS_PORT if has_ssl else WS_PLAIN_PORT}"
 
         # ----------------------------------------------------
         # QR displayed BY THE PC.
         # The phone scans this.
         # ----------------------------------------------------
-        qr = qc.QRCode(
-            border=2,
-            error_correction=qc.constants.ERROR_CORRECT_M
-        )
+        def current_pair_url():
+            fp = ""
+            if has_ssl:
+                try:
+                    fp = pairing.cert_fingerprint(VMOUSE_CERT_PATH)
+                except Exception:
+                    fp = ""
+            return pairing.pairing_url(ip, PAIRING_STORE.token, fp, tls=bool(fp))
 
-        qr.add_data(ws_url)
-        qr.make(fit=True)
+        def make_qr_image():
+            qr = qc.QRCode(
+                border=2,
+                box_size=6,
+                error_correction=qc.constants.ERROR_CORRECT_M
+            )
+            qr.add_data(current_pair_url())
+            qr.make(fit=True)
+            return qr.make_image(
+                fill_color="#12111F",
+                back_color="white"
+            ).convert("RGB")
 
-        qr_img = qr.make_image(
-            fill_color="#12111F",
-            back_color="white"
-        ).convert("RGB")
-
-        qr_img = qr_img.resize(
-            (300, 300),
-            Image.NEAREST
-        )
+        qr_img = make_qr_image()
 
         base_dir = getattr(
             sys,
@@ -600,16 +615,16 @@ def show_qr_popup(ip, has_ssl):
                 "The PC displays the QR code. Your phone scans it to connect."
             )
 
-            body = tk.Frame(
-                page,
-                bg=BG
-            )
-
-            body.pack(
-                fill="both",
-                expand=True
-            )
-
+            shell = tk.Frame(page, bg=BG)
+            shell.pack(fill="both", expand=True)
+            body_canvas = tk.Canvas(shell, bg=BG, highlightthickness=0, bd=0)
+            body_scroll = tk.Scrollbar(shell, orient="vertical", command=body_canvas.yview)
+            body_canvas.configure(yscrollcommand=body_scroll.set)
+            body_scroll.pack(side="right", fill="y")
+            body_canvas.pack(side="left", fill="both", expand=True)
+            body = tk.Frame(body_canvas, bg=BG)
+            body_window = body_canvas.create_window((0, 0), window=body, anchor="nw")
+            _vm_attach_scroll(body_canvas, body, body_window)
             body.grid_columnconfigure(0, weight=3)
             body.grid_columnconfigure(1, weight=2)
 
@@ -641,7 +656,7 @@ def show_qr_popup(ip, has_ssl):
                 fg=MUTED
             ).pack()
 
-            qr_photo = ImageTk.PhotoImage(qr_img)
+            qr_photo = ImageTk.PhotoImage(make_qr_image())
 
             qr_label = tk.Label(
                 left,
@@ -710,6 +725,53 @@ def show_qr_popup(ip, has_ssl):
                 padx=22
             )
 
+            # -- Connection type, pairing and troubleshooting ---------------
+            tools = tk.Frame(right, bg=SURFACE)
+            tools.pack(fill="x", padx=22, pady=(16, 0))
+            tk.Label(tools, text="CONNECTION TYPE", font=("Segoe UI", 9, "bold"), bg=SURFACE, fg=MUTED).pack(anchor="w")
+            seg = tk.Frame(tools, bg=SURFACE2)
+            seg.pack(fill="x", pady=(6, 0))
+            tk.Label(seg, text="Wi-Fi", font=("Segoe UI", 10, "bold"), bg=PRIMARY, fg="white", padx=16, pady=7).pack(side="left", padx=4, pady=4)
+            tk.Label(seg, text="Bluetooth (coming soon)", font=("Segoe UI", 10), bg=SURFACE2, fg=MUTED, padx=12, pady=7).pack(side="left", padx=4, pady=4)
+            net_hint = pairing.network_hint(ip)
+            if net_hint:
+                tk.Label(tools, text=net_hint, font=("Segoe UI", 9), bg=SURFACE, fg=RED, anchor="w", justify="left", wraplength=320).pack(fill="x", pady=(8, 0))
+            web_var = tk.BooleanVar(value=PAIRING_STORE.allow_web)
+
+            def toggle_web():
+                PAIRING_STORE.set_allow_web(web_var.get())
+
+            tk.Checkbutton(
+                tools, text="Allow iPhone web app (not encrypted)", variable=web_var, command=toggle_web,
+                bg=SURFACE, fg=TEXT, selectcolor=SURFACE2, activebackground=SURFACE, activeforeground=TEXT,
+                font=("Segoe UI", 9), bd=0, highlightthickness=0, cursor="hand2"
+            ).pack(anchor="w", pady=(10, 0))
+            btn_row = tk.Frame(tools, bg=SURFACE)
+            btn_row.pack(fill="x", pady=(10, 0))
+            tool_note = tk.Label(tools, text="", font=("Segoe UI", 9), bg=SURFACE, fg=MUTED, anchor="w", justify="left", wraplength=320)
+
+            def do_reset():
+                PAIRING_STORE.reset()
+                if LOOP is not None:
+                    asyncio.run_coroutine_threadsafe(close_all_clients(), LOOP)
+                try:
+                    fresh = ImageTk.PhotoImage(make_qr_image())
+                    qr_label.config(image=fresh)
+                    qr_label.image = fresh
+                except Exception:
+                    pass
+                tool_note.config(text="Pairing reset. Phones must scan the new code.", fg=GREEN)
+
+            def do_firewall():
+                ok, msg = pairing.open_firewall()
+                tool_note.config(text=msg, fg=GREEN if ok else RED)
+
+            for label_text, action in (("Reset pairing", do_reset), ("Fix connection", do_firewall)):
+                tk.Button(
+                    btn_row, text=label_text, command=action, font=("Segoe UI", 9, "bold"), bg=SURFACE2, fg=TEXT,
+                    activebackground=BORDER, activeforeground=TEXT, bd=0, padx=12, pady=7, cursor="hand2"
+                ).pack(side="left", padx=(0, 8))
+            tool_note.pack(fill="x", pady=(8, 0))
             tk.Label(
                 right,
                 text="HOW IT WORKS",
@@ -724,7 +786,7 @@ def show_qr_popup(ip, has_ssl):
 
             steps = [
                 ("01", "Install VMouse", "Install the VMouse mobile app."),
-                ("02", "Scan the QR", "Use the phone camera inside VMouse."),
+                ("02", "Scan the QR", "Android app or iPhone camera."),
                 ("03", "Control your PC", "Use the trackpad, keyboard and controls.")
             ]
 
@@ -2674,6 +2736,53 @@ def start_status_server():
 
 # ── WebSocket handler ─────────────────────────────────────────────────────────
 
+async def close_all_clients():
+    for ws in list(clients):
+        try:
+            await ws.close(code=4401, reason="pairing reset")
+        except Exception:
+            pass
+
+
+async def _reject(ws, reason):
+    try:
+        await ws.send(json.dumps({"type": "auth_failed", "reason": reason}))
+        await ws.close(code=4401, reason=reason)
+    except Exception:
+        pass
+
+
+async def serve_client(ws, secure):
+    """First message must be {"type": "auth", "token": ...}; then the normal command loop runs."""
+    addr = ws.remote_address
+    ip = addr[0] if addr else "?"
+    if not secure and not PAIRING_STORE.allow_web:
+        log.info(f"Plain connection from {ip} refused (iPhone web app is switched off)")
+        await _reject(ws, "web_disabled")
+        return
+    ok, why = False, "auth_required"
+    try:
+        first = json.loads(await asyncio.wait_for(ws.recv(), timeout=8))
+        if isinstance(first, dict) and first.get("type") == "auth":
+            ok, why = PAIRING_GUARD.check(ip, first.get("token"))
+    except Exception:
+        ok, why = False, "auth_required"
+    if not ok:
+        log.warning(f"Connection from {ip} rejected: {why}")
+        await _reject(ws, why)
+        return
+    await ws.send(json.dumps({"type": "auth_ok"}))
+    await ws_handler(ws)
+
+
+async def ws_secure(ws):
+    await serve_client(ws, True)
+
+
+async def ws_plain(ws):
+    await serve_client(ws, False)
+
+
 async def ws_handler(ws):
     addr = ws.remote_address
     clients.add(ws)
@@ -2726,10 +2835,11 @@ def main():
     print(f"  Powered by Bryt Ma Tech, Uganda")
     print(f"{'='*50}")
     print(f"  IP        : {ip}")
-    print(f"  WebSocket : ws://{ip}:{WS_PORT}")
+    print(f"  Secure WS : wss://{ip}:{WS_PORT}   (Android app)")
+    print(f"  Web app   : http://{ip}:{HTTP_PORT}   (iPhone, same Wi-Fi)")
     scheme = "https" if has_ssl else "http"
     port   = WEB_PORT if has_ssl else 8080
-    print(f"  Phone app : {scheme}://{ip}:{port}")
+    print(f"  Pairing   : scan the QR code in the window")
     print(f"{'='*50}\n")
 
     # Web server in background
@@ -2748,15 +2858,28 @@ def main():
 
     # WebSocket server (blocking)
     async def run():
+        global LOOP
+        LOOP = asyncio.get_running_loop()
         stop = asyncio.get_event_loop().create_future()
         signal.signal(signal.SIGINT,  lambda *_: stop.set_result(None) if not stop.done() else None)
         signal.signal(signal.SIGTERM, lambda *_: stop.set_result(None) if not stop.done() else None)
-        async with websockets.serve(ws_handler, "0.0.0.0", WS_PORT):
-            log.info(f"WebSocket listening on 0.0.0.0:{WS_PORT}")
+        ssl_ctx = None
+        if has_ssl:
+            try:
+                ssl_ctx = pairing.make_server_ssl_context(VMOUSE_CERT_PATH, VMOUSE_KEY_PATH)
+            except Exception as e:
+                log.warning(f"Secure connection unavailable: {e}")
+        async with contextlib.AsyncExitStack() as stack:
+            if ssl_ctx is not None:
+                await stack.enter_async_context(
+                    websockets.serve(ws_secure, "0.0.0.0", WS_PORT, ssl=ssl_ctx, max_size=65536))
+                log.info(f"Secure WebSocket (wss) listening on 0.0.0.0:{WS_PORT}")
+            await stack.enter_async_context(
+                websockets.serve(ws_plain, "0.0.0.0", WS_PLAIN_PORT, max_size=65536))
+            log.info(f"Web app WebSocket (ws) listening on 0.0.0.0:{WS_PLAIN_PORT}")
             asyncio.create_task(status_loop())
             await stop
         log.info(f"Stopped. Session stats: {stats}")
-
     asyncio.run(run())
 
 
