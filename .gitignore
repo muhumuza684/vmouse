@@ -65,3 +65,7 @@ vmouse_master_backup_*/
 VMOUSE_*.txt
 
 *.spec
+
+android/key.properties
+*.keystore
+*.jks

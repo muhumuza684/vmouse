@@ -1,1 +1,97 @@
-<!doctype html><title>VMouse</title><p>The VMouse web app is added by script 02.</p>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B0A14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VMouse">
+<title>VMouse</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs><linearGradient id="mg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8074F4"/><stop offset="1" stop-color="#6456E0"/></linearGradient></defs>
+  <symbol id="logo" viewBox="0 0 36 50"><rect width="36" height="50" rx="18" fill="url(#mg)"/><rect y="20" width="36" height="3" fill="#000"/><rect x="16.5" width="3" height="20" fill="#000"/></symbol>
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <symbol id="i-mouse" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 7v4"/></symbol>
+    <symbol id="i-kbd" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+    <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v9M6.3 7a8 8 0 1 0 11.4 0"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-3-7z"/></symbol>
+  </g>
+</svg>
+
+<div id="app">
+  <header class="top">
+    <button id="back" class="icon-btn" aria-label="Back" hidden><svg class="i"><use href="#i-back"/></svg></button>
+    <svg class="logo"><use href="#logo"/></svg>
+    <div class="brand"><b>VMouse</b><small>by Bryt Ma Tech</small></div>
+    <span id="badge" class="badge off">Connecting</span>
+  </header>
+
+  <main>
+    <section id="s-status" class="screen active">
+      <div class="status-card">
+        <h1 id="st-title">Connecting to your PC</h1>
+        <p id="st-text">Keep this page open. Your PC and phone must be on the same Wi-Fi.</p>
+        <button id="st-retry" class="btn" hidden>Try again</button>
+        <p class="small">To connect, scan the QR code shown by VMouse on your PC using the iPhone camera.</p>
+      </div>
+    </section>
+
+    <section id="s-home" class="screen">
+      <h2>What do you want to control?</h2>
+      <div class="tiles">
+        <button class="tile" data-go="mouse"><svg class="i big"><use href="#i-mouse"/></svg><b>Mouse Control</b><small>Move, click, scroll</small></button>
+        <button class="tile" data-go="keyboard"><svg class="i big"><use href="#i-kbd"/></svg><b>Keyboard Control</b><small>Text input, hotkeys</small></button>
+        <button class="tile" data-go="system"><svg class="i big"><use href="#i-power"/></svg><b>System Controls</b><small>Shutdown, restart, lock</small></button>
+        <button class="tile" data-go="health"><svg class="i big"><use href="#i-heart"/></svg><b>Health Monitor</b><small>PC status</small></button>
+      </div>
+    </section>
+
+    <section id="s-mouse" class="screen">
+      <nav class="tabs" data-tabs="mouse">
+        <button class="on" data-tab="trackpad">Trackpad</button>
+        <button data-tab="keyboard">Keyboard</button>
+        <button data-tab="shortcuts">Shortcuts</button>
+      </nav>
+      <div class="pane on" data-pane="trackpad">
+        <div id="pad" class="pad"><span>Slide to move. Tap to click. Two fingers to scroll.</span></div>
+        <div class="clicks"><button class="btn2" data-click="left">Left click</button><button class="btn2" data-click="right">Right click</button></div>
+      </div>
+      <div class="pane" data-pane="keyboard" id="pane-keyboard"></div>
+      <div class="pane" data-pane="shortcuts"><div id="shortcut-grid" class="grid2"></div></div>
+    </section>
+
+
+    <section id="s-system" class="screen">
+      <h2>System Controls</h2>
+      <div class="grid2" id="power-grid"></div>
+      <h3>Run a check on the PC</h3>
+      <div class="row"><input id="cmd" type="text" placeholder="ipconfig" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"><button id="cmd-run" class="send" aria-label="Run"><svg class="i"><use href="#i-send"/></svg></button></div>
+      <p class="small">Allowed: ipconfig, hostname, whoami, systeminfo, tasklist, ping, netstat and a few more.</p>
+      <pre id="cmd-out" class="out" hidden></pre>
+    </section>
+
+    <section id="s-health" class="screen">
+      <div class="row between"><h2>Health Monitor</h2><button id="health-refresh" class="btn2 small-btn">Refresh</button></div>
+      <div id="health-body" class="health"><p class="small">Loading…</p></div>
+    </section>
+  </main>
+</div>
+
+<div id="confirm" class="modal" hidden>
+  <div class="sheet"><h3 id="confirm-title"></h3><p id="confirm-text"></p>
+    <div class="row"><button id="confirm-no" class="btn2">Cancel</button><button id="confirm-yes" class="btn danger">Yes, do it</button></div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
