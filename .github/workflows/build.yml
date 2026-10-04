@@ -139,14 +139,16 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: List files
-        run: find artifacts -type f
+      - name: Give the files stable download names
+        run: |
+          mkdir release
+          cp artifacts/VMouse-windows/VMouse-Setup-*.exe release/VMouse-Setup.exe
+          cp artifacts/VMouse-windows/VMouse.exe release/VMouse-portable.exe
+          cp artifacts/VMouse-linux/*.tar.gz release/VMouse-linux.tar.gz
+          cp artifacts/VMouse-mac/*.zip release/VMouse-mac.zip
+          cp artifacts/VMouse-android/VMouse.apk release/VMouse.apk
+          ls -la release
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: |
-            artifacts/VMouse-windows/VMouse-Setup-*.exe
-            artifacts/VMouse-windows/VMouse.exe
-            artifacts/VMouse-linux/*.tar.gz
-            artifacts/VMouse-mac/*.zip
-            artifacts/VMouse-android/VMouse.apk
+          files: release/*

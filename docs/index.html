@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VMouse: use your phone as a mouse, keyboard and remote</title>
+<meta name="description" content="VMouse turns your phone into a mouse, keyboard and remote for your computer. Download for Windows, Mac, Linux and Android, or use it on iPhone.">
+<meta name="theme-color" content="#05050A">
+<meta property="og:type" content="website">
+<meta property="og:title" content="VMouse: your phone is now a mouse, keyboard and remote">
+<meta property="og:description" content="Download for Windows, Mac, Linux and Android. Works on iPhone too. Built by Bryt Ma Tech Uganda.">
+<meta property="og:url" content="https://muhumuza684.github.io/vmouse/">
+<meta property="og:image" content="https://muhumuza684.github.io/vmouse/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="img/favicon.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="preload" href="fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:Inter;src:url(fonts/inter.woff2) format("woff2");font-weight:100 900;font-display:swap}
+:root{--bg:#05050A;--s1:#12111F;--s2:#1F1F2B;--line:#2A2940;--pri:#6D5FE8;--pri2:#A79EF5;--tx:#F1F0FA;--mu:#9A99B2;--ok:#3DDC97;--r:22px}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--tx);font:16px/1.6 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;height:auto;display:block}
+.wrap{max-width:1120px;margin:auto;padding:0 22px}
+header{position:sticky;top:0;z-index:20;background:rgba(5,5,10,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:18px;height:64px}
+.brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:19px;letter-spacing:-.02em}
+.brand img{width:34px;height:34px;border-radius:9px}
+nav{margin-left:auto;display:flex;gap:26px;font-size:14.5px;color:var(--mu);font-weight:500}
+nav a:hover{color:var(--tx)}
+.gh{border:1px solid var(--line);border-radius:99px;padding:7px 15px;font-size:13.5px;font-weight:600;color:var(--tx)}
+@media(max-width:820px){nav{display:none}.gh{margin-left:auto}}
+.hero{padding:70px 0 40px;position:relative}
+.hero::before{content:"";position:absolute;inset:-120px 0 auto;height:520px;background:radial-gradient(600px 300px at 20% 30%,rgba(109,95,232,.28),transparent),radial-gradient(500px 300px at 85% 10%,rgba(167,158,245,.14),transparent);pointer-events:none}
+.hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;position:relative}
+@media(max-width:900px){.hero .wrap{grid-template-columns:1fr}.hero{padding-top:44px}}
+.pill{display:inline-flex;align-items:center;gap:8px;background:rgba(61,220,151,.12);color:var(--ok);border-radius:99px;padding:6px 14px;font-size:13px;font-weight:700}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+h1{font-size:clamp(36px,5.6vw,62px);line-height:1.04;letter-spacing:-.035em;font-weight:800;margin:20px 0 18px}
+h1 span{background:linear-gradient(120deg,#8074F4,#C4BDFB);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:clamp(17px,2vw,20px);color:var(--mu);max-width:34em}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:15px;padding:15px 24px;font-weight:700;font-size:16px;border:1px solid var(--line);background:var(--s1);color:var(--tx);cursor:pointer;transition:transform .15s,background .15s}
+.btn:hover{transform:translateY(-2px);background:var(--s2)}
+.btn.main{background:var(--pri);border-color:var(--pri);box-shadow:0 12px 34px rgba(109,95,232,.42)}
+.btn.main:hover{background:#7a6df0}
+.sub{font-size:13.5px;color:var(--mu);margin-top:14px}
+.shots{position:relative;display:flex;justify-content:center;align-items:flex-end;padding-bottom:30px}
+.shots .pc{width:92%;max-width:560px;height:auto;margin-right:6%;border-radius:14px;border:1px solid var(--line);box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.shots .ph{position:absolute;right:0;bottom:-30px;width:26%;max-width:150px;height:auto;border-radius:26px;border:6px solid #0B0A14;outline:1px solid var(--line);box-shadow:0 24px 60px rgba(0,0,0,.7)}
+section{padding:70px 0}
+h2{font-size:clamp(28px,4vw,40px);letter-spacing:-.03em;line-height:1.1;font-weight:800;margin-bottom:12px}
+.kicker{color:var(--pri2);font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
+.intro{color:var(--mu);max-width:40em;margin-bottom:34px}
+.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+@media(max-width:1000px){.cards{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.cards{grid-template-columns:1fr 1fr}}
+@media(max-width:440px){.cards{grid-template-columns:1fr}}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:22px 18px;display:flex;flex-direction:column;gap:6px;position:relative;transition:border-color .2s,transform .2s}
+.card:hover{border-color:var(--pri);transform:translateY(-3px)}
+.card.rec{border-color:var(--pri);box-shadow:0 0 0 1px var(--pri),0 18px 50px rgba(109,95,232,.25)}
+.badge{position:absolute;top:-11px;left:16px;background:var(--pri);color:#fff;font-size:11.5px;font-weight:800;padding:3px 11px;border-radius:99px;display:none}
+.card.rec .badge{display:block}
+.ico{width:46px;height:46px;border-radius:14px;background:var(--s2);display:grid;place-items:center;color:var(--pri2);margin-bottom:8px}
+.ico svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.card h3{font-size:19px;letter-spacing:-.01em}
+.card p{color:var(--mu);font-size:13.5px;line-height:1.5;flex:1}
+.card .btn{margin-top:14px;padding:12px 14px;font-size:14.5px;width:100%}
+.tag{font-size:11px;font-weight:700;color:#F5C26B;background:rgba(245,194,107,.12);border-radius:99px;padding:2px 9px;margin-left:6px;vertical-align:middle}
+.ver{color:var(--mu);font-size:13.5px;margin-top:18px}
+details{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:16px 20px;margin-top:10px}
+summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:14px}
+summary::after{content:"+";color:var(--pri2);font-size:20px;line-height:1}
+details[open] summary::after{content:"\2212"}
+details p,details li{color:var(--mu);font-size:15px;margin-top:10px}
+details ol{padding-left:20px}
+.share{margin-top:28px;display:flex;align-items:center;gap:18px;background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:16px 20px;max-width:560px}
+.share img{width:96px;height:96px;border-radius:12px;background:#fff}
+.share b{display:block;margin-bottom:2px}.share span{color:var(--mu);font-size:14px}
+@media(max-width:700px){.share{display:none}}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;counter-reset:s}
+@media(max-width:800px){.steps{grid-template-columns:1fr}}
+.step{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:26px;counter-increment:s}
+.step::before{content:counter(s);display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:var(--pri);font-weight:800;margin-bottom:16px}
+.step h3{font-size:19px;margin-bottom:6px}.step p{color:var(--mu);font-size:15px}
+.feat{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:900px){.feat{grid-template-columns:1fr 1fr}}@media(max-width:560px){.feat{grid-template-columns:1fr}}
+.f{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+.f h3{font-size:17px;margin:10px 0 4px}.f p{color:var(--mu);font-size:14.5px}
+.gallery{display:flex;gap:16px;overflow-x:auto;padding:6px 2px 24px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.gallery figure{flex:0 0 auto;width:210px;scroll-snap-align:start}
+.gallery img{width:100%;border-radius:26px;border:6px solid #0B0A14;outline:1px solid var(--line)}
+.gallery figcaption{text-align:center;color:var(--mu);font-size:13.5px;margin-top:10px}
+.faq{max-width:760px}
+footer{border-top:1px solid var(--line);padding:38px 0 60px;color:var(--mu);font-size:14.5px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:14px 30px;align-items:center;justify-content:space-between}
+footer a{color:var(--pri2);font-weight:600}
+.links{display:flex;flex-wrap:wrap;gap:8px 22px}
+</style>
+</head>
+<body>
+<header><div class="wrap bar">
+  <a class="brand" href="#top"><img src="img/icon-192.png" alt="" width="34" height="34">VMouse</a>
+  <nav><a href="#download">Download</a><a href="#how">How it works</a><a href="#features">Features</a><a href="#faq">Questions</a></nav>
+  <a class="gh" href="https://github.com/muhumuza684/vmouse">GitHub</a>
+</div></header>
+
+<main id="top">
+<div class="hero"><div class="wrap">
+  <div>
+    <span class="pill"><i></i>Version <b data-version>1.0</b> is out</span>
+    <h1>Your phone is now a <span>mouse, keyboard and remote.</span></h1>
+    <p class="lead">Control your computer from the couch, the lecture hall or the meeting room. Open VMouse on your computer, scan the code with your phone, and start moving.</p>
+    <div class="cta">
+      <a class="btn main" id="hero-dl" href="#download">Download VMouse</a>
+      <a class="btn" href="#how">How it works</a>
+    </div>
+    <p class="sub" id="hero-sub">Works on Windows, Mac, Linux, Android and iPhone.</p>
+  </div>
+  <div class="shots">
+    <img class="pc" src="img/pc.webp" width="1100" height="688" alt="The VMouse window on a computer, showing the QR code to scan">
+    <img class="ph" src="img/phone-trackpad.webp" width="540" height="1169" alt="The VMouse trackpad on a phone">
+  </div>
+</div></div>
+
+<section id="download"><div class="wrap">
+  <p class="kicker">Download</p>
+  <h2>Pick your device</h2>
+  <p class="intro">Install VMouse on the computer you want to control. Then use your phone to control it: the Android app, or the camera on an iPhone.</p>
+  <div class="cards">
+    <div class="card" data-os="windows"><span class="badge">For your device</span>
+      <div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div>
+      <h3>Windows</h3><p>Windows 10 and 11. Installer with Start menu and desktop shortcut.</p>
+      <a class="btn main" data-dl="windows" href="#">Download .exe</a></div>
+    <div class="card" data-os="android"><span class="badge">For your device</span>
+      <div class="ico"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg></div>
+      <h3>Android</h3><p>The phone app. Scan the code on your computer to connect.</p>
+      <a class="btn main" data-dl="android" href="#">Download .apk</a></div>
+    <div class="card" data-os="ios"><span class="badge">For your device</span>
+      <div class="ico"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M10 5h4"/></svg></div>
+      <h3>iPhone</h3><p>Nothing to install. Scan the code on your computer with the camera.</p>
+      <a class="btn" href="#iphone">See how</a></div>
+    <div class="card" data-os="mac"><span class="badge">For your device</span>
+      <div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div>
+      <h3>Mac <span class="tag">Beta</span></h3><p>Apple computers. Needs a one-time permission, see below.</p>
+      <a class="btn" data-dl="mac" href="#">Download .zip</a></div>
+    <div class="card" data-os="linux"><span class="badge">For your device</span>
+      <div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div>
+      <h3>Linux <span class="tag">Beta</span></h3><p>Works on X11 desktops. Extract the file and run it.</p>
+      <a class="btn" data-dl="linux" href="#">Download .tar.gz</a></div>
+  </div>
+  <p class="ver">Latest version: <b data-version>1.0</b> &middot; <a href="https://github.com/muhumuza684/vmouse/releases/latest" style="color:var(--pri2);font-weight:600">All files and notes</a></p>
+
+  <div style="margin-top:24px;max-width:760px">
+    <details id="iphone"><summary>iPhone: how to use VMouse</summary>
+      <ol><li>Install VMouse on your Windows, Mac or Linux computer and open it.</li>
+      <li>Put your iPhone on the same Wi-Fi as the computer.</li>
+      <li>Open the iPhone camera and point it at the QR code shown in VMouse. Tap the link that appears.</li>
+      <li>To keep it like an app, tap Share, then Add to Home Screen. VMouse must be open on the computer when you use it.</li></ol></details>
+    <details><summary>Windows: if Windows warns you</summary>
+      <p>The first time, Windows may say it protected your PC because VMouse is a new program. Click <b>More info</b>, then <b>Run anyway</b>. If your phone cannot connect, press <b>Fix connection</b> in VMouse and choose Yes.</p></details>
+    <details><summary>Android: installing the app</summary>
+      <p>Chrome may warn about downloading an app file. Choose <b>Download anyway</b>. When you open the file, Android may ask you to allow installs from your browser. Allow it, then install.</p></details>
+    <details><summary>Mac: first time</summary>
+      <p>Unzip the file and move VMouse to Applications. Right-click it and choose <b>Open</b>, then Open again. In System Settings, Privacy and Security, Accessibility, allow VMouse so it can move the mouse. This version is still in beta.</p></details>
+    <details><summary>Linux: first time</summary>
+      <p>Extract the file (<code>tar -xzf VMouse-linux.tar.gz</code>), then run <code>./VMouse</code>. Mouse control needs an X11 session. On the login screen choose the Xorg option instead of Wayland. This version is still in beta.</p></details>
+  </div>
+  <div class="share"><img src="img/qr.png" alt="QR code for this page" width="96" height="96"><div><b>On your computer?</b><span>Scan this with your phone to open this page there and get the Android app.</span></div></div>
+</div></section>
+
+<section id="how" style="background:linear-gradient(180deg,transparent,rgba(18,17,31,.6),transparent)"><div class="wrap">
+  <p class="kicker">How it works</p>
+  <h2>Connected in under a minute</h2>
+  <p class="intro">No accounts and no cables. Your phone and computer talk over your own Wi-Fi.</p>
+  <div class="steps">
+    <div class="step"><h3>Install on your computer</h3><p>Download VMouse for Windows, Mac or Linux and open it. A QR code appears.</p></div>
+    <div class="step"><h3>Scan the QR code</h3><p>On Android, open the VMouse app and scan. On iPhone, use the camera and tap the link.</p></div>
+    <div class="step"><h3>Start controlling</h3><p>Slide to move the mouse, tap to click, type, and use shortcuts.</p></div>
+  </div>
+</div></section>
+
+<section id="features"><div class="wrap">
+  <p class="kicker">Features</p>
+  <h2>Everything you need from the couch</h2>
+  <p class="intro">Built for presentations, lectures, movies and everyday use.</p>
+  <div class="feat">
+    <div class="f"><div class="ico"><svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 7v4"/></svg></div><h3>Trackpad</h3><p>Move, click, right-click, scroll and drag with natural touch gestures.</p></div>
+    <div class="f"><div class="ico"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></div><h3>Keyboard</h3><p>Type text from your phone, plus Esc, Tab, Enter, arrows and function keys.</p></div>
+    <div class="f"><div class="ico"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></div><h3>Shortcuts</h3><p>Copy, paste, undo, save, close tab, show desktop and more in one tap.</p></div>
+    <div class="f"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v9M6.3 7a8 8 0 1 0 11.4 0"/></svg></div><h3>System controls</h3><p>Lock, sleep, restart or shut down your computer, with a confirmation first.</p></div>
+    <div class="f"><div class="ico"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg></div><h3>Health monitor</h3><p>See processor, memory, disk and battery status from your phone.</p></div>
+    <div class="f"><div class="ico"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div><h3>Private by design</h3><p>Only phones that scanned your code can connect. Reset the code any time.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <p class="kicker">Screens</p>
+  <h2>A look at the phone</h2>
+  <div class="gallery" style="margin-top:26px">
+    <figure><img loading="lazy" src="img/phone-home.webp" width="540" height="1169" alt="VMouse home screen"><figcaption>Home</figcaption></figure>
+    <figure><img loading="lazy" src="img/phone-trackpad.webp" width="540" height="1169" alt="Trackpad"><figcaption>Trackpad</figcaption></figure>
+    <figure><img loading="lazy" src="img/phone-keyboard.webp" width="540" height="1169" alt="Keyboard"><figcaption>Keyboard</figcaption></figure>
+    <figure><img loading="lazy" src="img/phone-shortcuts.webp" width="540" height="1169" alt="Shortcuts"><figcaption>Shortcuts</figcaption></figure>
+    <figure><img loading="lazy" src="img/phone-system.webp" width="540" height="1169" alt="System controls"><figcaption>System</figcaption></figure>
+  </div>
+</div></section>
+
+<section id="faq"><div class="wrap faq">
+  <p class="kicker">Questions</p>
+  <h2>Good to know</h2>
+  <details><summary>Do my phone and computer need to be on the same Wi-Fi?</summary><p>Yes. They connect directly over your own Wi-Fi network. If the router blocks devices from seeing each other, turn on your phone's hotspot and connect the computer to it.</p></details>
+  <details><summary>Is it safe?</summary><p>Every connection needs the secret code from the QR code, so only phones that scanned it can connect. The Android app also checks the computer's certificate and connects over an encrypted link. The iPhone web app is not encrypted; you can switch it off in VMouse. Press Reset pairing in VMouse to cut off every phone.</p></details>
+  <details><summary>Does it work with Bluetooth?</summary><p>Not yet. Bluetooth is planned. Today VMouse works over Wi-Fi.</p></details>
+  <details><summary>My phone cannot connect. What now?</summary><p>Check both devices use the same Wi-Fi. On Windows, press <b>Fix connection</b> in VMouse and choose Yes. Then scan the QR code again.</p></details>
+  <details><summary>Where do I get help?</summary><p>Open the Support page inside VMouse, or <a style="color:var(--pri2)" href="https://github.com/muhumuza684/vmouse/issues">report a problem on GitHub</a>.</p></details>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <div>Made by <b style="color:var(--tx)">Bryt Ma Tech Uganda</b></div>
+  <div class="links"><a href="https://github.com/muhumuza684/vmouse">Source code</a><a href="https://github.com/muhumuza684/vmouse/releases/latest">Releases</a><a href="poster/VMouse-poster.pdf">Poster (PDF)</a><a href="poster/VMouse-poster-print.pdf">Poster (print)</a></div>
+</div></footer>
+
+<script>
+(function () {
+  var base = "https://github.com/muhumuza684/vmouse/releases/latest/download/";
+  var files = { windows: "VMouse-Setup.exe", mac: "VMouse-mac.zip", linux: "VMouse-linux.tar.gz", android: "VMouse.apk" };
+  var names = { windows: "Windows", mac: "Mac", linux: "Linux", android: "Android" };
+  document.querySelectorAll("[data-dl]").forEach(function (a) { a.href = base + files[a.getAttribute("data-dl")]; });
+  var ua = navigator.userAgent || "", os = "";
+  if (/Android/i.test(ua)) os = "android";
+  else if (/iPhone|iPad|iPod/i.test(ua)) os = "ios";
+  else if (/Windows/i.test(ua)) os = "windows";
+  else if (/Mac/i.test(ua)) os = "mac";
+  else if (/Linux|X11/i.test(ua)) os = "linux";
+  var card = os && document.querySelector('.card[data-os="' + os + '"]');
+  if (card) {
+    card.classList.add("rec");
+    var hero = document.getElementById("hero-dl"), sub = document.getElementById("hero-sub");
+    if (files[os]) {
+      hero.textContent = "Download for " + names[os]; hero.href = base + files[os];
+      sub.textContent = os === "android" ? "Then open the app and scan the QR code shown on your computer." : "Then scan the QR code with your phone.";
+    } else {
+      hero.textContent = "Use VMouse on iPhone"; hero.href = "#iphone";
+      sub.textContent = "Install VMouse on your computer first, then scan its code with your camera.";
+    }
+  }
+  fetch("https://api.github.com/repos/muhumuza684/vmouse/releases/latest").then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+    if (!j || !j.tag_name) return;
+    document.querySelectorAll("[data-version]").forEach(function (e) { e.textContent = j.tag_name.replace(/^v/, ""); });
+  }).catch(function () {});
+})();
+</script>
+</body>
+</html>

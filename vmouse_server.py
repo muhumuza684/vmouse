@@ -1057,7 +1057,35 @@ async def status_loop():
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+def already_running():
+    """True if another copy of VMouse already holds the connection port."""
+    import socket as _socket
+    probe = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+    try:
+        probe.bind(("0.0.0.0", WS_PORT))
+        return False
+    except OSError:
+        return True
+    finally:
+        probe.close()
+
+
 def main():
+    if already_running():
+        message = ("VMouse seems to be running already.\n\n"
+                   "Look for it on the taskbar or by the clock, or close the other copy and try again.")
+        print(message)
+        if os.environ.get("VMOUSE_NO_DIALOG") != "1":
+            try:
+                import tkinter as _tk
+                from tkinter import messagebox as _mb
+                _root = _tk.Tk()
+                _root.withdraw()
+                _mb.showinfo("VMouse", message)
+                _root.destroy()
+            except Exception:
+                pass
+        sys.exit(0)
     ip         = local_ip()
     script_dir = os.path.dirname(os.path.abspath(__file__))
     has_ssl    = gen_cert_if_needed()
