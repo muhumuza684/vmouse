@@ -783,6 +783,31 @@ def show_qr_popup(ip, has_ssl):
                 pass  # minimize stays on the taskbar
         except Exception:
             pass
+        def _vm_taskbar_icon():
+            """Tell Windows to use the VMouse icon on the taskbar button (and Alt+Tab)."""
+            if os.name != "nt":
+                return
+            try:
+                import ctypes
+                user32 = ctypes.windll.user32
+                user32.GetAncestor.restype = ctypes.c_void_p
+                user32.GetAncestor.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+                user32.LoadImageW.restype = ctypes.c_void_p
+                user32.LoadImageW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_uint,
+                                              ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+                user32.SendMessageW.restype = ctypes.c_void_p
+                user32.SendMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p]
+                hwnd = user32.GetAncestor(root.winfo_id(), 2)
+                if not hwnd:
+                    return
+                big = user32.LoadImageW(None, icon_path, 1, 64, 64, 0x10)
+                if big:
+                    user32.SendMessageW(hwnd, 0x0080, 1, big)
+            except Exception:
+                pass
+
+        for _ms in (150, 600, 1800):
+            root.after(_ms, _vm_taskbar_icon)
         show_page("connection")
         root.mainloop()
 
