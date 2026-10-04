@@ -69,3 +69,8 @@ VMOUSE_*.txt
 android/key.properties
 *.keystore
 *.jks
+
+# Added by 08_clean_repo.py
+.pytest_cache/
+.vscode/
+pairing.json
