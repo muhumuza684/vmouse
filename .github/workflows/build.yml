@@ -136,6 +136,7 @@ jobs:
     needs: [ test, windows, linux, macos, android ]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -147,6 +148,7 @@ jobs:
           cp artifacts/VMouse-linux/*.tar.gz release/VMouse-linux.tar.gz
           cp artifacts/VMouse-mac/*.zip release/VMouse-mac.zip
           cp artifacts/VMouse-android/VMouse.apk release/VMouse.apk
+          zip -r release/VMouse-web-app.zip pwa
           ls -la release
       - uses: softprops/action-gh-release@v2
         with:

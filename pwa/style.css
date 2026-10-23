@@ -49,3 +49,5 @@ input[type=text]{flex:1;min-width:0;background:var(--inp);border:1px solid var(-
 .modal[hidden]{display:none}
 .sheet{background:var(--s1);border-top:1px solid var(--line);border-radius:26px 26px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom))}
 .sheet p{margin:8px 0 18px}.sheet .row>*{flex:1}
+
+.demo{background:#2A2940;color:#A79EF5;padding:8px 16px;font-size:13px;font-weight:600;text-align:center}

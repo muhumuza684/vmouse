@@ -14,6 +14,8 @@
   &nbsp;|&nbsp;
   <a href="https://github.com/muhumuza684/vmouse/releases/latest">Latest release</a>
   &nbsp;|&nbsp;
+  <a href="https://muhumuza684.github.io/vmouse/app/">Web app demo</a>
+  &nbsp;|&nbsp;
   <a href="docs/poster/VMouse-poster-print.pdf">Poster</a>
 </p>
 
@@ -65,6 +67,15 @@ On Windows, if your phone cannot connect, press **Fix connection** in VMouse and
   <img src="docs/img/phone-system.webp" width="150" alt="System controls">
 </p>
 
+## iPhone web app
+
+iPhone users do not install anything. VMouse serves a small web app from your computer (the [`pwa`](pwa) folder),
+and the phone opens it by scanning the QR code. It also works in any Android browser.
+
+- **Try it without a computer:** <https://muhumuza684.github.io/vmouse/app/> (demo only, it is not connected to anything)
+- **Files:** [`pwa/`](pwa), plain HTML, CSS and JavaScript. Each release also includes `VMouse-web-app.zip`.
+- **For real use:** open VMouse on your computer, then scan its QR code with the phone camera.
+
 ## Security
 
 - Every connection needs the secret pairing code from the QR code. Press **Reset pairing** in VMouse to cut off every phone and make a new code.
@@ -109,7 +120,7 @@ Releases are built by GitHub when a version tag is pushed. See [RELEASING.md](RE
 | `installer/` | Windows installer script (Inno Setup) |
 | `build_app.py` | Builds the PC app for Windows, Mac or Linux |
 | `tests/` | Automatic tests |
-| `docs/` | The landing page and poster, published with GitHub Pages |
+| `docs/` | The landing page, the web app demo (`docs/app`) and the poster, published with GitHub Pages |
 | `.github/workflows/build.yml` | Builds everything and publishes releases |
 
 ## Support

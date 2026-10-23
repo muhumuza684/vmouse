@@ -11,6 +11,7 @@
   var PORT = SECURE_PAGE ? (params.get('wss') || '8765') : (params.get('ws') || '8766');
   var ws = null, ready = false, retryTimer = null, retryDelay = 1000, giveUp = false, hb = null, hbTimeout = null;
   var waiting = null; // callback waiting for the next reply
+  var DEMO = window.VMOUSE_DEMO === true || params.get('demo') === '1'; // demo: no computer needed, nothing is sent
 
   function setBadge(text, ok) { var b = $('#badge'); b.textContent = text; b.className = 'badge' + (ok ? '' : ' off'); }
   function showStatus(title, text, retry) {
@@ -20,6 +21,7 @@
 
   function connect() {
     clearTimeout(retryTimer);
+    if (DEMO) { ready = true; setBadge('Demo', true); var dn = $('#demo-note'); if (dn) dn.hidden = false; if (current === 'status') show('home'); return; }
     if (!TOKEN) { giveUp = true; setBadge('Not paired', false); showStatus('Scan the QR code', 'Open the camera on your iPhone and scan the QR code shown by VMouse on your PC.', false); return; }
     setBadge('Connecting', false);
     if (!ready) showStatus('Connecting to your PC', 'Keep this page open. Your PC and phone must be on the same Wi-Fi.', false);
@@ -53,8 +55,14 @@
     hb = setInterval(function () { send({ type: 'ping' }); clearTimeout(hbTimeout); hbTimeout = setTimeout(function () { try { ws.close(); } catch (e) {} }, 10000); }, 5000);
   }
   function stopHeartbeat() { clearInterval(hb); clearTimeout(hbTimeout); }
-  function send(obj) { if (ws && ready && ws.readyState === 1) { ws.send(JSON.stringify(obj)); return true; } return false; }
-  function ask(obj, cb) { waiting = cb; if (!send(obj)) { waiting = null; cb({ status: 'error', message: 'Not connected' }); } }
+  function demoReply(o) {
+    if (o.type === 'get_health') return { data: { cpu: { usage_percent: 18, cores: 8 }, ram: { percent: 46, used_gb: 7.3, total_gb: 15.8 }, disk: { percent: 61, free_gb: 186 }, battery: { percent: 82, plugged_in: true } }, analysis: { risks: [], recommendations: ['Your PC appears healthy'] } };
+    if (o.type === 'system_power') return { message: 'Demo: nothing happens on your computer.' };
+    if (o.type === 'system_command') return { output: 'Demo: this would show the result from your computer.' };
+    return {};
+  }
+  function send(obj) { if (DEMO) return true; if (ws && ready && ws.readyState === 1) { ws.send(JSON.stringify(obj)); return true; } return false; }
+  function ask(obj, cb) { if (DEMO) { setTimeout(function () { cb(demoReply(obj)); }, 350); return; } waiting = cb; if (!send(obj)) { waiting = null; cb({ status: 'error', message: 'Not connected' }); } }
   $('#st-retry').onclick = function () { giveUp = false; retryDelay = 1000; connect(); };
   document.addEventListener('visibilitychange', function () { if (!document.hidden && !ready && !giveUp) { retryDelay = 1000; connect(); } });
 

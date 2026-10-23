@@ -76,6 +76,7 @@ summary::after{content:"+";color:var(--pri2);font-size:20px;line-height:1}
 details[open] summary::after{content:"\2212"}
 details p,details li{color:var(--mu);font-size:15px;margin-top:10px}
 details ol{padding-left:20px}
+.webapp{margin-top:28px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px 24px;background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;max-width:760px}.webapp b{display:block;margin-bottom:2px}.webapp span{color:var(--mu);font-size:14.5px;display:block;max-width:34em}.cta2{display:flex;flex-wrap:wrap;gap:10px}.cta2 .btn{padding:12px 18px;font-size:14.5px}
 .share{margin-top:28px;display:flex;align-items:center;gap:18px;background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:16px 20px;max-width:560px}
 .share img{width:96px;height:96px;border-radius:12px;background:#fff}
 .share b{display:block;margin-bottom:2px}.share span{color:var(--mu);font-size:14px}
@@ -168,6 +169,8 @@ footer a{color:var(--pri2);font-weight:600}
     <details><summary>Linux: first time</summary>
       <p>Extract the file (<code>tar -xzf VMouse-linux.tar.gz</code>), then run <code>./VMouse</code>. Mouse control needs an X11 session. On the login screen choose the Xorg option instead of Wayland. This version is still in beta.</p></details>
   </div>
+  <div class="webapp"><div><b>The iPhone web app</b><span>It runs from your computer, so there is nothing to download. Want a look first? The demo works without a computer.</span></div>
+    <div class="cta2"><a class="btn main" href="app/">Try the demo</a><a class="btn" href="https://github.com/muhumuza684/vmouse/tree/main/pwa">View the files on GitHub</a></div></div>
   <div class="share"><img src="img/qr.png" alt="QR code for this page" width="96" height="96"><div><b>On your computer?</b><span>Scan this with your phone to open this page there and get the Android app.</span></div></div>
 </div></section>
 
@@ -221,7 +224,7 @@ footer a{color:var(--pri2);font-weight:600}
 
 <footer><div class="wrap">
   <div>Made by <b style="color:var(--tx)">Bryt Ma Tech Uganda</b></div>
-  <div class="links"><a href="https://github.com/muhumuza684/vmouse">Source code</a><a href="https://github.com/muhumuza684/vmouse/releases/latest">Releases</a><a href="poster/VMouse-poster.pdf">Poster (PDF)</a><a href="poster/VMouse-poster-print.pdf">Poster (print)</a></div>
+  <div class="links"><a href="https://github.com/muhumuza684/vmouse">Source code</a><a href="https://github.com/muhumuza684/vmouse/releases/latest">Releases</a><a href="app/">Web app demo</a><a href="poster/VMouse-poster.pdf">Poster (PDF)</a><a href="poster/VMouse-poster-print.pdf">Poster (print)</a></div>
 </div></footer>
 
 <script>
